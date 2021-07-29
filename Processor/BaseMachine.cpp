@@ -8,6 +8,8 @@
 
 #include <iostream>
 #include <sodium.h>
+#include "PpcConstant.h"
+
 using namespace std;
 
 BaseMachine* BaseMachine::singleton = 0;
@@ -130,8 +132,15 @@ void BaseMachine::print_timers()
 
 string BaseMachine::memory_filename(const string& type_short, int my_number)
 {
-  return PREP_DIR "Memory-" + type_short + "-P" + to_string(my_number);
+    std::string prefix = get_prefix();
+  return PREP_DIR "" + prefix + "-Memory-" + type_short + "-P" + to_string(my_number);
 }
+
+// string BaseMachine::memory_filename(const string& type_short, int my_number)
+// {
+//     ppc_prefix = "test";
+//   return PREP_DIR "Memory-" + ppc_prefix + type_short + "-P" + to_string(my_number);
+// }
 
 string BaseMachine::get_domain(string progname)
 {

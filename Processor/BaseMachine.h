@@ -35,6 +35,7 @@ public:
     static thread_local int thread_num;
 
     string progname;
+    string ppc_prefix;
     int nthreads;
 
     vector<OTTripleSetup> ot_setups;
@@ -47,6 +48,7 @@ public:
     static bool has_singleton() { return singleton != 0; }
 
     static string memory_filename(const string& type_short, int my_number);
+    // string memory_filename(const string& type_short, int my_number);
 
     static string get_domain(string progname);
     static int ring_size_from_schedule(string progname);
