@@ -1,0 +1,58 @@
+#This file is Test for NJ Tree distance_matrix each generic
+
+d_matrix_size=200
+
+SOURCE0=0
+source0_record=Matrix(d_matrix_size, d_matrix_size, sint)
+SOURCE1=1
+source1_record=Array(1, sint)
+
+def read_source0_data(party_id):
+    @for_range_opt(d_matrix_size)
+    def _(i):
+        for j in range(d_matrix_size):
+            source0_record[i][j] = sint.get_input_from(party_id)
+
+def read_source1_data(party_id):
+    @for_range_opt(1)
+    def _(i):
+        source1_record[i] = sint.get_input_from(party_id)
+
+
+def _compute_q(d_matrix, d_matrix_size):
+    """Compute Q matrix, used to identify the next pair of nodes to join.
+
+    """
+    q = Matrix(d_matrix_size, d_matrix_size, sint)
+    #for i in range(0, d_matrix_size):
+    i=d_matrix_size-1
+    for j in range(0, i):
+        sum_i = sint(0)
+        sum_j = sint(0)
+        for k in range(0, d_matrix_size):
+            sum_i = d_matrix[i][k] + sum_i
+            sum_j = d_matrix[j][k] + sum_j
+        q[i][j] = (d_matrix_size-2) * d_matrix[i][j] - sum_i - sum_j
+        q[j][i] = q[i][j]
+    return q
+
+#def min_matrix_pos(q_matrix, q_matrix_size):
+#    min_pos = [0, 0]
+#    min_value = q_matrix[0][0]
+#    for i in range(0, q_matrix_size):
+#        for j in range(i, q_matrix_size):
+#            is_match = (q_matrix[i][j] < min_value)
+#            min_value = if_else(is_match, q_matrix[i][j], min_value)
+#            min_pos = if_else(is_match, [i,j], min_pos)
+#    return min_pos
+
+read_source0_data(SOURCE0)
+read_source1_data(SOURCE1)
+q = _compute_q(source0_record, d_matrix_size)
+#for i in range(0, d_matrix_size):
+#        for j in range(i, d_matrix_size):
+#            print_ln("q[%s][%s]  = %s", i,j,q[i][j].reveal())
+
+#pos = min_matrix_pos(q, d_matrix_size)
+#print_ln("pos i  = %s", pos[0].reveal())
+#print_ln("pos i  = %s", pos[1].reveal())

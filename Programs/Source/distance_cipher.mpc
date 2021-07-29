@@ -1,0 +1,42 @@
+#This file is Test for NJ Tree distance_matrix each generic
+
+from util import if_else
+
+n_threads = 64
+n_parallel = 8
+
+program.bit_length = 32
+generic_array_count=300
+SOURCE0=0
+SOURCE1=1
+SOURCE2=2
+source0_record=Array(generic_array_count, sint)
+source1_record=Array(generic_array_count, sint)
+distance_matrix=Array(1, sint)
+
+def read_source0_data(party_id):
+    @for_range_opt(generic_array_count)
+    def _(i):
+        source0_record[i] = sint.get_input_from(party_id)
+
+def read_source1_data(party_id):
+    @for_range_opt(generic_array_count)
+    def _(i):
+        source1_record[i] = sint.get_input_from(party_id)
+
+def compute_distance_matrix(party_id):
+    for i in range(0, generic_array_count):
+        # compare distance
+        is_match = (source0_record[i] != source1_record[i])
+        #distance_matrix[0] = if_else(is_match, distance_matrix[0], distance_matrix[0]+sint(1))
+        distance_matrix[0] = distance_matrix[0] + sint(is_match)
+
+read_source0_data(SOURCE0)
+read_source1_data(SOURCE1)
+compute_distance_matrix(SOURCE0)
+result = distance_matrix[0] + source0_record[0]  + source1_record[0]
+print_ln("distance_matrix = %s", distance_matrix[0].reveal())
+print_ln("result = %s", result.reveal())
+
+
+

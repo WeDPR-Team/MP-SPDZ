@@ -1,0 +1,59 @@
+#This file is Test for NJ Tree
+
+from util import if_else
+
+n_threads = 64
+n_parallel = 8
+
+program.bit_length = 32
+generic_array_count=100
+SOURCE0=0
+source0_generic_count=3
+source0_record=Matrix(source0_generic_count, generic_array_count, sint)
+SOURCE1=1
+source1_generic_count=7
+d_init_matrix_size=source0_generic_count+source1_generic_count
+source1_record= Matrix(source1_generic_count, generic_array_count, sint)
+distance_matrix=Matrix(d_init_matrix_size, d_init_matrix_size, sint)
+
+def read_source0_data(party_id):
+    @for_range_opt(source0_generic_count)
+    def _(i):
+        for j in range(generic_array_count):
+            source0_record[i][j] = sint.get_input_from(party_id)
+
+def read_source1_data(party_id):
+    @for_range_opt(source1_generic_count)
+    def _(i):
+        for j in range(generic_array_count):
+            source1_record[i][j] = sint.get_input_from(party_id)
+
+def compute_distance_matrix(party_id):
+    for i in range(0, d_init_matrix_size):
+        for j in range(i, d_init_matrix_size):
+            # generic i and j distance count
+            i_j_distance = sint(0)
+            if i==j:
+                distance_matrix[i][j]=sint(0)
+                continue;
+            for k in range(0, generic_array_count):
+                # compare distance
+                if i < source0_generic_count:
+                    if j < source0_generic_count:
+                        is_match = (source0_record[i][k] == source0_record[j][k])
+                        i_j_distance = if_else(is_match, i_j_distance, i_j_distance+sint(1))
+                    else:
+                        is_match = (source0_record[i][k] == source1_record[j-source0_generic_count][k])
+                        i_j_distance = if_else(is_match, i_j_distance, i_j_distance+sint(1))
+                else:
+                    is_match = (source1_record[i-source0_generic_count][k] == source1_record[j-source0_generic_count][k])
+                    i_j_distance = if_else(is_match, i_j_distance, i_j_distance+sint(1))
+            distance_matrix[i][j]=i_j_distance
+            distance_matrix[j][i]=i_j_distance
+
+
+read_source0_data(SOURCE0)
+read_source1_data(SOURCE1)
+compute_distance_matrix(SOURCE0)
+
+
