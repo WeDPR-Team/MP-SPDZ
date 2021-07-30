@@ -4,6 +4,7 @@ from Compiler.types import Array, sint, sfloat, sfix,MemValue, cint, Matrix
 # import math
 # from Compiler.instructions import *
 from Compiler.library import for_range, print_str, for_range
+import ml
 
 pint = sint
 pfloat = sfloat
@@ -12,6 +13,51 @@ pnum = pfloat
 
 # Use to limit the tester workload
 MAX_DATA_LENGTH = 500
+MAX_ML_SIZE = 500
+
+def get_ml_size(shape_array):
+    ml_size = 1
+    for i in range(1, len(shape_array)):
+        ml_size *= shape_array[i]
+    return ml_size
+
+
+def pConv2d(input_shape, weight_shape, bias_shape, output_shape, stride,
+                 padding='SAME', tf_weight_format=False, inputs=None):
+    input_shape_size = get_ml_size(input_shape)
+    if input_shape_size > MAX_ML_SIZE:
+        raise TypeError('input_shape could not larger than %s', MAX_ML_SIZE)
+    bias_shape_size = get_ml_size(bias_shape)
+    if bias_shape_size > MAX_ML_SIZE:
+        raise TypeError('bias_shape could not larger than %s', MAX_ML_SIZE)
+    return ml.FixConv2d(input_shape, weight_shape, bias_shape, output_shape, stride,
+                 padding, tf_weight_format=False, inputs=None)
+
+def pMaxPool(shape, strides=(1, 2, 2, 1), ksize=(1, 2, 2, 1),
+                 padding='VALID'):
+    shape_size = get_ml_size(shape)
+    if shape_size > MAX_ML_SIZE:
+        raise TypeError('shape could not larger than %s', MAX_ML_SIZE)
+    strides_size = get_ml_size(strides)
+    if strides_size > MAX_ML_SIZE:
+        raise TypeError('strides_size could not larger than %s', MAX_ML_SIZE)
+    ksize_size = get_ml_size(ksize)
+    if ksize_size > MAX_ML_SIZE:
+        raise TypeError('ksize_size could not larger than %s', MAX_ML_SIZE)
+    return ml.MaxPool(shape, strides, ksize,
+                 padding)
+
+def pRelu(shape, inputs=None):
+    shape_size = get_ml_size(shape)
+    if shape_size > MAX_ML_SIZE:
+        raise TypeError('shape could not larger than %s', MAX_ML_SIZE)
+    return ml.Relu(shape, inputs)
+
+def pDense(N, d_in, d_out, d=1, activation='id', debug=False):
+    if d_out > MAX_ML_SIZE:
+        raise TypeError('d_out could not larger than %s', MAX_ML_SIZE)
+    return ml.Dense(N, d_in, d_out, d, activation, debug)
+
 
 def read_array(party_id, source_record_count, value_type=pnum):
     if source_record_count > MAX_DATA_LENGTH:
