@@ -174,15 +174,15 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
             "--bucket-size" // Flag token.
     );
     opt.add(
-            "ppc", // Default.
+            "", // Default.
             0, // Required?
             1, // Number of args expected.
             0, // Delimiter if expecting multiple args.
             "Where to obtain memory file, old|empty (default: empty)\n\t"
             "old: reuse previous memory in Memory-<type>-P<i>\n\t"
             "empty: create new empty memory", // Help description.
-            "-ppc", // Flag token.
-            "--ppc" // Flag token.
+            "-MF", // Flag token.
+            "--memory-file" // Flag token.
     );
 
     opt.parse(argc, argv);
@@ -207,7 +207,7 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
     opt.get("-IF")->getString(cmd_private_input_file);
     opt.get("-OF")->getString(cmd_private_output_file);
     std::string prefix;
-    opt.get("-ppc")->getString(prefix);
+    opt.get("-MF")->getString(prefix);
     set_prefix(prefix);
 
     direct = opt.isSet("--direct");
