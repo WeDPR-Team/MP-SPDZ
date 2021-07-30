@@ -1,35 +1,25 @@
-# 引入ppc基础语法
+# import ppc algorithm
 from ppc import *
 
-# 定义三方参与
 SOURCE0 = 0
 SOURCE1 = 1
 SOURCE2 = 2
 
-# 读取0方数据，员工人数分别为3、3、4个
-source0_record = read_float_data(SOURCE0, 3)
-source1_record = read_float_data(SOURCE1, 3)
-source2_record = read_float_data(SOURCE2, 4)
-
-# 定义计算函数
+# read data
+source0_record = pfloat.read_data(SOURCE0, 3)
+source1_record = pfloat.read_data(SOURCE1, 3)
+source2_record = pfloat.read_data(SOURCE2, 4)
 
 
 def do_compute(source0_record, source1_record, source2_record):
 
-    # 计算工资总和
     result_total = source0_record[0] + source0_record[1] + source0_record[2] + source1_record[0] + source1_record[1] + \
         source1_record[2] + source2_record[0] + \
         source2_record[1] + source2_record[2] + source2_record[3]
-    # 计算平均值
     result_average = result_total / 10
 
-    # 披露最终结果
     println("Final salary total is %s", result_total.reveal())
     println("Final salary average is %s", result_average.reveal())
-    test = ppcInt(2)
-    println("ppcInt(2) is %s", test.reveal())
 
 
-
-# 执行计算函数
 do_compute(source0_record, source1_record, source2_record)

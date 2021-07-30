@@ -1,28 +1,22 @@
-# 引入ppc基础语法
+# import ppc algorithm
 from ppc import *
 
-# 定义三方参与
 SOURCE0 = 0
 SOURCE1 = 1
 SOURCE2 = 2
 
-# 读取0方数据，模型参数共3个
-source0_record = read_float_data(SOURCE0, 3)
-# 读取1方数据，秘密输入共1个
-source1_record = read_float_data(SOURCE1, 1)
-# 读取2方数据，秘密输入共2个
-source2_record = read_float_data(SOURCE2, 2)
+# read data
+source0_record = pfloat.read_data(SOURCE0, 3)
+source1_record = pfloat.read_data(SOURCE1, 1)
+source2_record = pfloat.read_data(SOURCE2, 2)
 
-# 定义计算函数
 def do_compute(source0_record, source1_record, source2_record):
 
-    # 比较case
     result = condition(source1_record[0] <= source0_record[0],
                        condition(source2_record[0] <= source0_record[1], sfloat(0.1 * 1.5296),
                                  sfloat(0.1 * -1.01004)), condition(source2_record[1] <= source0_record[2],
                                                                     sfloat(0.1 * -0.4192), sfloat(0.1 * -2.634507)))
 
-    # 披露最终结果
     println("Final result is %s", result.reveal())
     println("In fact, source0_record[0] is %s",
             source0_record[0].reveal())

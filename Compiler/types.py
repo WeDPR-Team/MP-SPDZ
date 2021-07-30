@@ -108,12 +108,12 @@ class MPCThread(object):
         self.tape_handle = program.new_tape(target, args, name,
                                             single_thread=single_thread)
         self.run_handles = []
-    
+
     def start(self, runtime_arg = None):
         self.running += 1
         self.run_handles.append(program.run_tape(self.tape_handle, \
                                            runtime_arg or self.runtime_arg))
-    
+
     def join(self):
         if not self.running:
             raise CompilerError('Thread %s is not running' % self.name)
@@ -2474,7 +2474,7 @@ class _bitint(object):
         long_one = util.long_one(a + b)
         op = lambda y,x,*args: (util.if_else(x[1], x[0], y[0]), \
                                     util.if_else(x[1], long_one, y[1]))
-        return floatingpoint.KOpL(op, [(bi, ai + bi) for (ai,bi) in zip(a,b)])        
+        return floatingpoint.KOpL(op, [(bi, ai + bi) for (ai,bi) in zip(a,b)])
 
     @classmethod
     def bit_less_than(cls, a, b):
@@ -2624,7 +2624,7 @@ class _bitint(object):
     @staticmethod
     def prep_comparison(a, b):
         a[-1], b[-1] = b[-1], a[-1]
-    
+
     def comparison(self, other, const_rounds=False, index=None):
         a = self.bit_decompose()
         b = util.bit_decompose(other, self.n_bits)
@@ -2906,14 +2906,14 @@ class cfix(_number, _structure):
 
     @vectorized_classmethod
     def read_from_socket(cls, client_id, n=1):
-        """ Read one or more cfix values from a socket. 
+        """ Read one or more cfix values from a socket.
             Sender will have already bit shifted and sent as cints."""
         cint_input = cint.read_from_socket(client_id, n)
         if n == 1:
             return cfix._new(cint_inputs)
         else:
             return list(map(cfix, cint_inputs))
-        
+
     @vectorized_classmethod
     def write_to_socket(self, client_id, values, message_type=ClientMessageType.NoType):
         """ Send a list of cfix values to socket. Values are sent as bit shifted cints. """
@@ -3020,7 +3020,7 @@ class cfix(_number, _structure):
         else:
             return NotImplemented
 
-    @vectorize 
+    @vectorize
     def mul(self, other):
         """ Clear fixed-point multiplication.
 
@@ -3065,7 +3065,7 @@ class cfix(_number, _structure):
         """ Clear fixed-point negation. """
         # cfix type always has .v
         return cfix._new(-self.v)
-    
+
     def __rsub__(self, other):
         return -self + other
     __rsub__.__doc__ = __sub__.__doc__
@@ -3442,7 +3442,7 @@ class _fix(_single):
     def __getitem__(self, index):
         return self._new(self.v[index])
 
-    @vectorize 
+    @vectorize
     def add(self, other):
         """ Secret fixed-point addition.
 
@@ -3866,7 +3866,7 @@ class sfloat(_number, _structure):
     """
     Secret floating-point number.
     Represents :math:`(1 - 2s) \cdot (1 - z)\cdot v \cdot 2^p`.
-        
+
         v: significand
 
         p: exponent
@@ -4128,7 +4128,7 @@ class sfloat(_number, _structure):
             return sfloat(v, p, z, s)
         else:
             return NotImplemented
-    
+
     @vectorize_max
     def mul(self, other):
         """ Secret floating-point multiplication.
@@ -4158,13 +4158,13 @@ class sfloat(_number, _structure):
             return sfloat(v2, p, z, s)
         else:
             return NotImplemented
-    
+
     def __sub__(self, other):
         """ Secret floating-point subtraction.
 
         :param other: sfloat/float/sfix/sint/cint/regint/int """
         return self + -other
-    
+
     def __rsub__(self, other):
         return -self + other
     __rsub__.__doc__ = __sub__.__doc__
@@ -4222,7 +4222,7 @@ class sfloat(_number, _structure):
             return b
         else:
             return NotImplemented
-    
+
     def __ge__(self, other):
         """ Secret floating-point comparison. """
         return 1 - (self < other)

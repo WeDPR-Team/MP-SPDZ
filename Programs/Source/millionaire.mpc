@@ -1,16 +1,13 @@
-# 引入ppc基础语法
+# import ppc algorithm
 from ppc import *
 
-# 定义两方参与
 SOURCE0 = 0
 SOURCE1 = 1
 
-# 读取0方数据
-source0_record = read_int_data(SOURCE0, 1)
-# 读取1方数据
-source1_record = read_int_data(SOURCE1, 1)
+# read data
+source0_record = pint.read_data(SOURCE0, 1)
+source1_record = pint.read_data(SOURCE1, 1)
 
-# 定义计算函数
 def do_compute(source0_record, source1_record):
 
     # 比较大小

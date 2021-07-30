@@ -1,34 +1,35 @@
-# 引入ppc基础语法
+# import ppc algorithm
 from ppc import *
 
-# 定义五方参与
 SOURCE0 = 0
 SOURCE1 = 1
 SOURCE2 = 2
 SOURCE3 = 3
 SOURCE4 = 4
 
-# 读取数据
+# read data
 candidate_count = 3
-source0_record = read_int_data(SOURCE0, candidate_count)
-source1_record = read_int_data(SOURCE1, candidate_count)
-source2_record = read_int_data(SOURCE2, candidate_count)
-source3_record = read_int_data(SOURCE3, candidate_count)
-source4_record = read_int_data(SOURCE4, candidate_count)
+source0_record = pint.read_data(SOURCE0, candidate_count)
+source1_record = pint.read_data(SOURCE1, candidate_count)
+source2_record = pint.read_data(SOURCE2, candidate_count)
+source3_record = pint.read_data(SOURCE3, candidate_count)
+source4_record = pint.read_data(SOURCE4, candidate_count)
 
 def do_compute(source0_record, source1_record, source2_record, source3_record, source4_record):
 
-    # 计算平均分数
-    result_total = source0_record[0] + source0_record[1] + source0_record[2] + source1_record[0] + source1_record[1] + \
-        source1_record[2] + source2_record[0] + \
-        source2_record[1] + source2_record[2] + source2_record[3]
-    # 计算平均值
-    result_average = result_total / 10
+    candidate0 = source0_record[0] + source1_record[0] + source2_record[0] + source3_record[0] + source4_record[0]
+    candidate1 = source0_record[1] + source1_record[1] + source2_record[1] + source3_record[1] + source4_record[1]
+    candidate2 = source0_record[2] + source1_record[2] + source2_record[2] + source3_record[2] + source4_record[2]
 
-    # 披露最终结果
-    println("Final salary total is %s", result_total.reveal())
-    println("Final salary average is %s", result_average.reveal())
+    candidate0_average = pfix(candidate0) / 5
+    candidate1_average = pfix(candidate1) / 5
+    candidate2_average = pfix(candidate2) / 5
 
+    println("Candidate0 final score is %s", candidate0.reveal())
+    println("Candidate0 average score is %s", candidate0_average.reveal())
+    println("Candidate1 final score is %s", candidate1.reveal())
+    println("Candidate1 average score is %s", candidate1_average.reveal())
+    println("Candidate2 final score is %s", candidate2.reveal())
+    println("Candidate2 average score is %s", candidate2_average.reveal())
 
-# 执行计算函数
 do_compute(source0_record, source1_record, source2_record, source3_record, source4_record)

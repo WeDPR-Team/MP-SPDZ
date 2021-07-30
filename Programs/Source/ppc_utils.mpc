@@ -1,0 +1,39 @@
+# import ppc algorithm
+from ppc import *
+
+
+int_source_record = read_array(0, 2, pint)
+float_source_record = read_array(0, 2, pfloat)
+fix_source_record = read_array(0, 2, pfix)
+num_source_record = read_array(0, 2, pnum)
+int_matrix_record = read_matrix(0, 2, 4)
+
+
+
+def test_order():
+    pint_array = Array(4, pint)
+    pint_array[0] = pint(1)
+    pint_array[1] = pint(2)
+    pint_array[2] = pint(4)
+    pint_array[3] = pint(3)
+    (result, index) = max_in_array(pint_array)
+    println("result is %s", result.reveal())
+    println("index is %s", index.reveal())
+
+def test_combine():
+    combine1 = combine_array(int_source_record,int_source_record)
+    combine2 = combine_array(float_source_record, float_source_record)
+    combine3 = combine_array(fix_source_record, fix_source_record)
+    combine4 = combine_array(num_source_record, num_source_record)
+    println("combine1[3] is %s", combine1[3].reveal())
+    println("combine2[3] is %s", combine2[3].reveal())
+    println("combine3[3] is %s", combine3[3].reveal())
+    println("combine4[3] is %s", combine4[3].reveal())
+    println("int_matrix_record[1-3] is %s", int_matrix_record[1][3].reveal())
+    print_matrix(int_matrix_record)
+
+
+
+
+test_order()
+test_combine()
