@@ -14,11 +14,8 @@ def do_compute(source0_record, source1_record, source2_record):
     num = source0_record[0] + source1_record[0] + source2_record[0]
     # num = source0_record[0] + source1_record[0] + source2_record[0] + pint.get_random_bit()
 
-    max_index = pint(3)
-    less = pfix(num) / pfix(max_index)
-    remainder = num - ((less.v >> pfix.f) * max_index)
-
-
+    remainder = num % 3
     println("Final winner is %s", remainder.reveal())
+
 
 do_compute(source0_record, source1_record, source2_record)
