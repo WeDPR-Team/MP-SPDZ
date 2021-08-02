@@ -5,19 +5,16 @@ SOURCE0 = 0
 SOURCE1 = 1
 
 # read data
-source0_record = pint.read_data(SOURCE0, 1)
-source1_record = pint.read_data(SOURCE1, 1)
+source0_record = read_array(SOURCE0, 1, pint)
+source1_record = read_array(SOURCE1, 1, pint)
 
 def do_compute(source0_record, source1_record):
 
-    # 比较大小
     result_value = condition(source0_record[0] > source1_record[0], 1, 2)
-    # 披露数额大的一方
     println("Millionaire %s is rich ", result_value.reveal())
     println("In fact, first millionaire's asset is %s million",
             source0_record[0].reveal())
     println("In fact, second millionaire's asset is %s million",
             source1_record[0].reveal())
 
-# 执行计算函数
 do_compute(source0_record, source1_record)

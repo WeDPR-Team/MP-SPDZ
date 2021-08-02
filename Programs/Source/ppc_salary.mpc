@@ -6,9 +6,9 @@ SOURCE1 = 1
 SOURCE2 = 2
 
 # read data
-source0_record = pfloat.read_data(SOURCE0, 3)
-source1_record = pfloat.read_data(SOURCE1, 3)
-source2_record = pfloat.read_data(SOURCE2, 4)
+source0_record = read_array(SOURCE0, 3, pfloat)
+source1_record = read_array(SOURCE1, 3, pfloat)
+source2_record = read_array(SOURCE2, 4, pfloat)
 
 
 def do_compute(source0_record, source1_record, source2_record):

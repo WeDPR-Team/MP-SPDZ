@@ -9,11 +9,11 @@ SOURCE4 = 4
 
 # read data
 candidate_count = 3
-source0_record = pint.read_data(SOURCE0, candidate_count)
-source1_record = pint.read_data(SOURCE1, candidate_count)
-source2_record = pint.read_data(SOURCE2, candidate_count)
-source3_record = pint.read_data(SOURCE3, candidate_count)
-source4_record = pint.read_data(SOURCE4, candidate_count)
+source0_record = read_array(SOURCE0, candidate_count, pint)
+source1_record = read_array(SOURCE1, candidate_count, pint)
+source2_record = read_array(SOURCE2, candidate_count, pint)
+source3_record = read_array(SOURCE3, candidate_count, pint)
+source4_record = read_array(SOURCE4, candidate_count, pint)
 
 def do_compute(source0_record, source1_record, source2_record, source3_record, source4_record):
 
