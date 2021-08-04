@@ -20,6 +20,21 @@ print_float_prec(4)
 MAX_DATA_LENGTH = 500
 MAX_ML_SIZE = 500
 
+ppcConv2d = ml.FixConv2d
+ppcMaxPool = ml.MaxPool
+ppcRelu = ml.Relu
+ppcDense = ml.Dense
+
+def set_display_field_names(name_list):
+    println("result_fields = %s", ' '.join(name_list))
+
+
+def display_data(field_values):
+    printfmt("result_values =")
+    for value in field_values:
+        printfmt(" %s", value)
+    println()
+
 
 def get_ml_size(shape_array):
     ml_size = 1

@@ -43,6 +43,13 @@ def test_machine_larning():
     ml4 = pDense(train_record_count, 32, n_inner, activation='activation')
     println("ml4 type is %s", type(ml4))
 
+def test_display():
+    name_list = ["age", "test", "what"]
+    set_display_field_names(name_list)
+    value_list = [pint(3).reveal(), pint(4).reveal(), pfix(5.11).reveal()]
+    display_data(value_list)
+
 test_order()
 test_combine()
 test_machine_larning()
+test_display()
