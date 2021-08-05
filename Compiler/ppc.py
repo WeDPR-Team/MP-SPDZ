@@ -222,5 +222,5 @@ def pint_floordiv(self, other):
 
 
 pint.__mod__ = pint_mod
-pint.__truediv__ = pint_truediv
+#pint.__truediv__ = pint_truediv
 pint.__floordiv__ = pint_floordiv
