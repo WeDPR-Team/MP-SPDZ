@@ -32,7 +32,7 @@ void ExternalClients::start_listening(int portnum_base)
   client_connection_servers[portnum_base] = new AnonymousServerSocket(portnum_base + get_party_num());
   client_connection_servers[portnum_base]->init();
   cerr << "Start listening on thread " << this_thread::get_id() << endl;
-  cerr << "Party " << get_party_num() << " is listening on port " << (portnum_base + get_party_num()) 
+  cerr << "Party " << get_party_num() << " is listening on port " << (portnum_base + get_party_num())
         << " for external client connections." << endl;
 }
 
@@ -46,7 +46,10 @@ int ExternalClients::get_client_connection(int portnum_base)
   }
   cerr << "Thread " << this_thread::get_id() << " found server." << endl; 
   int client_id, socket;
-  socket = client_connection_servers[portnum_base]->get_connection_socket(client_id);
+  string client;
+  socket = client_connection_servers[portnum_base]->get_connection_socket(
+      client);
+  client_id = stoi(client);
   if (ctx == 0)
     ctx = new ssl_ctx("P" + to_string(get_party_num()));
   external_client_sockets[client_id] = new ssl_socket(io_service, *ctx, socket,
@@ -63,7 +66,8 @@ void ExternalClients::close_connection(int client_id)
     throw runtime_error("client id not active: " + to_string(client_id));
   delete external_client_sockets[client_id];
   external_client_sockets.erase(client_id);
-  client_connection_servers[client_ports[client_id]]->remove_client(client_id);
+  client_connection_servers[client_ports[client_id]]->remove_client(
+      to_string(client_id));
 }
 
 int ExternalClients::get_party_num() 
