@@ -250,7 +250,7 @@ int OnlineMachine::run()
     catch(...)
     {
         if (not online_opts.live_prep)
-            thread_info<T, U>::purge_preprocessing(playerNames);
+            thread_info<T, U>::purge_preprocessing(playerNames, 0);
         throw;
     }
 #endif

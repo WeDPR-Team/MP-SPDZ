@@ -39,13 +39,9 @@ OnlineOptions::OnlineOptions() : playerno(-1)
 }
 
 OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
-        const char** argv, int default_batch_size, bool default_live_prep,
-        bool variable_prime_length) :
+        const char** argv, false_type) :
         OnlineOptions()
 {
-    if (default_batch_size <= 0)
-        default_batch_size = batch_size;
-
     opt.syntax = std::string(argv[0]) + " [OPTIONS] [<playerno>] <progname>";
 
     opt.add(
@@ -80,6 +76,58 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
           "-OF", // Flag token.
           "--output-file" // Flag token.
     );
+ 
+    opt.add(
+            "", // Default.
+            0, // Required?
+            1, // Number of args expected.
+            0, // Delimiter if expecting multiple args.
+            "This player's number (required if not given before program name)", // Help description.
+            "-p", // Flag token.
+            "--player" // Flag token.
+    );
+    opt.add(
+            "", // Default.
+            0, // Required?
+            0, // Number of args expected.
+            0, // Delimiter if expecting multiple args.
+            "Verbose output", // Help description.
+            "-v", // Flag token.
+            "--verbose" // Flag token.
+    );
+    opt.add(
+            "4", // Default.
+            0, // Required?
+            1, // Number of args expected.
+            0, // Delimiter if expecting multiple args.
+            "Batch size for sacrifice (3-5, default: 4)", // Help description.
+            "-B", // Flag token.
+            "--bucket-size" // Flag token.
+    );
+
+    opt.parse(argc, argv);
+
+    interactive = opt.isSet("-I");
+
+    opt.get("-IF")->getString(cmd_private_input_file);
+    opt.get("-OF")->getString(cmd_private_output_file);
+
+    opt.get("--bucket-size")->getInt(bucket_size);
+
+#ifndef VERBOSE
+    verbose = opt.isSet("--verbose");
+#endif
+
+    opt.resetArgs();
+}
+
+OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
+        const char** argv, int default_batch_size, bool default_live_prep,
+        bool variable_prime_length) :
+        OnlineOptions(opt, argc, argv, false_type())
+{
+    if (default_batch_size <= 0)
+        default_batch_size = batch_size;
 
     string default_lgp = to_string(lgp);
     if (variable_prime_length)
@@ -124,15 +172,6 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
                 "-L", // Flag token.
                 "--live-preprocessing" // Flag token.
         );
-    opt.add(
-            "", // Default.
-            0, // Required?
-            1, // Number of args expected.
-            0, // Delimiter if expecting multiple args.
-            "This player's number (required if not given before program name)", // Help description.
-            "-p", // Flag token.
-            "--player" // Flag token.
-    );
 
     opt.add(
             to_string(default_batch_size).c_str(), // Default.
@@ -174,15 +213,6 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
             "--direct" // Flag token.
     );
     opt.add(
-            "4", // Default.
-            0, // Required?
-            1, // Number of args expected.
-            0, // Delimiter if expecting multiple args.
-            "Batch size for sacrifice (3-5, default: 4)", // Help description.
-            "-B", // Flag token.
-            "--bucket-size" // Flag token.
-    );
-    opt.add(
             "", // Default.
             0, // Required?
             1, // Number of args expected.
@@ -209,18 +239,9 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
             "-DBG",                        // Flag token.
             "--debug"       // Flag token.
         );
-     opt.add("",
-            0, // Required?
-            0, // Number of args expected.
-            0, // Delimiter if expecting multiple args.
-            "Verbose output", // Help description.
-            "-v", // Flag token.
-            "--verbose" // Flag token.
-    );
 
     opt.parse(argc, argv);
 
-    interactive = opt.isSet("-I");
     if (variable_prime_length)
     {
         opt.get("--lgp")->getInt(lgp);
@@ -251,12 +272,6 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
     set_debug_flag(debug_flag);
 
     direct = opt.isSet("--direct");
-
-    opt.get("--bucket-size")->getInt(bucket_size);
-
-#ifndef VERBOSE
-    verbose = opt.isSet("--verbose");
-#endif
 
     opt.resetArgs();
 }
