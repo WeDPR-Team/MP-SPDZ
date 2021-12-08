@@ -15,7 +15,7 @@ pnum = pfloat
 print_float_prec(7)
 
 # Use to limit the tester workload
-MAX_DATA_LENGTH = 500
+MAX_DATA_LENGTH = 500000
 MAX_ML_SIZE = 10000
 SECOND_LOOP_SIZE = 1000
 

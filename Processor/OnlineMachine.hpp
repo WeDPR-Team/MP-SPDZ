@@ -197,6 +197,7 @@ void OnlineMachine::start_networking()
         throw runtime_error("cannot set port number when using IP file");
       if (nplayers == 0 and opt.isSet("-N"))
         opt.get("-N")->getInt(nplayers);
+      cerr << "Ppc communication model setup name started!" << endl;
       playerNames.init(playerno, pnbase, ipFileName, nplayers);
     } else {
       if (not opt.get("-ext-server")->isSet)

@@ -20,7 +20,9 @@ void Names::init(int player,int pnb,int my_port,const char* servername)
   player_no=player;
   portnum_base=pnb;
   setup_names(servername, my_port);
+#ifndef PPC_COMMUNICATION
   setup_server();
+#endif
 }
 
 Names::Names(int player, int nplayers, const string& servername, int pnb,
@@ -83,7 +85,11 @@ void Names::init(int player, int pnb, const string& filename, int nplayers_wante
   for (unsigned int i = 0; i < names.size(); i++)
     cerr << "    " << names[i] << ":" << ports[i] << endl;
 #endif
+#ifdef PPC_COMMUNICATION
+  cerr << "Ppc communication model setup name finished!" << endl;
+#else
   setup_server();
+#endif
 }
 
 Names::Names(ez::ezOptionParser& opt, int argc, const char** argv,
@@ -125,7 +131,11 @@ void Names::setup_names(const char *servername, int my_port)
     my_port = default_port(player_no);
 
   int socket_num;
+#ifdef PPC_COMMUNICATION
+  int pn = portnum_base;
+#else
   int pn = portnum_base - 1;
+#endif
   set_up_client_socket(socket_num, servername, pn);
   octetStream("P" + to_string(player_no)).Send(socket_num);
 #ifdef DEBUG_NETWORKING
@@ -216,8 +226,13 @@ MultiPlayer<T>::MultiPlayer(const Names& Nms) :
 PlainPlayer::PlainPlayer(const Names& Nms, const string& id) :
         MultiPlayer<int>(Nms)
 {
-  if (Nms.num_players() > 1)
+  if (Nms.num_players() > 1){
+#ifdef PPC_COMMUNICATION
+    setup_sockets(Nms.names, Nms.ports, id);
+#else
     setup_sockets(Nms.names, Nms.ports, id, *Nms.server);
+#endif
+  }
 }
 
 
@@ -260,11 +275,23 @@ PlayerBase::~PlayerBase()
 // Set up nmachines client and server sockets to send data back and fro
 //   A machine is a server between it and player i if i<=my_number
 //   Can also communicate with myself, but only with send_to and receive_from
+#ifdef PPC_COMMUNICATION
+void PlainPlayer::setup_sockets(const vector<string>& names,
+        const vector<int>& ports, const string& id_base)
+#else
 void PlainPlayer::setup_sockets(const vector<string>& names,
         const vector<int>& ports, const string& id_base, ServerSocket& server)
+#endif
 {
     sockets.resize(nplayers);
     // Set up the client side
+#ifdef PPC_COMMUNICATION
+    for (int i=0; i<nplayers; i++) { 
+       auto pn=id_base+"P"+to_string(i);
+        set_up_client_socket(sockets[i],names[i].c_str(),ports[i]);
+        octetStream(pn).Send(sockets[i]);
+    }
+#else
     for (int i=player_no; i<nplayers; i++) {
         auto pn=id_base+"P"+to_string(player_no);
         if (i==player_no) {
@@ -284,7 +311,9 @@ void PlainPlayer::setup_sockets(const vector<string>& names,
         }
         octetStream(pn).Send(sockets[i]);
     }
+#endif
     send_to_self_socket = sockets[player_no];
+#ifndef PPC_COMMUNICATION
     // Setting up the server side
     for (int i=0; i<=player_no; i++) {
         auto id=id_base+"P"+to_string(i);
@@ -295,7 +324,7 @@ void PlainPlayer::setup_sockets(const vector<string>& names,
 #endif
         sockets[i] = server.get_connection_socket(id);
     }
-
+#endif
     for (int i = 0; i < nplayers; i++) {
         // timeout of 5 minutes
         struct timeval tv;

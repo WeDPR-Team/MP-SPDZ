@@ -415,8 +415,13 @@ public:
  */
 class PlainPlayer : public MultiPlayer<int>
 {
-  void setup_sockets(const vector<string>& names, const vector<int>& ports,
+  #ifdef PPC_COMMUNICATION
+void setup_sockets(const vector<string>& names, const vector<int>& ports,
+      const string& id_base);
+#else
+void setup_sockets(const vector<string>& names, const vector<int>& ports,
       const string& id_base, ServerSocket& server);
+#endif
 
 public:
   /**
