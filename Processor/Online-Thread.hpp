@@ -49,7 +49,7 @@ void thread_info<sint, sgf2n>::Sub_Main_Func()
   fprintf(stderr, "\tI am in thread %d\n",num);
 #endif
   Player* player;
-  string id = "thread" + to_string(num);
+  string id = "T" + to_string(num);
   if (machine.use_encryption)
     {
 #ifdef VERBOSE_OPTIONS

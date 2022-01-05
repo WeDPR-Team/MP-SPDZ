@@ -17,3 +17,5 @@ void set_connection_waiting_millisecond_flag(int sleep_time);
 
 bool get_debug_flag();
 void set_debug_flag(bool debug_flag);
+const std::string& get_job_id();
+void set_job_id(const std::string &id);

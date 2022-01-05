@@ -287,7 +287,9 @@ void PlainPlayer::setup_sockets(const vector<string>& names,
     // Set up the client side
 #ifdef PPC_COMMUNICATION
     for (int i=0; i<nplayers; i++) { 
-       auto pn=id_base+"P"+to_string(i);
+        auto job_id = get_job_id();
+        auto pn = job_id + "-" + id_base + "-" + to_string(i);
+        cerr << "Gateway pn: " << pn << endl;
         set_up_client_socket(sockets[i],names[i].c_str(),ports[i]);
         octetStream(pn).Send(sockets[i]);
     }

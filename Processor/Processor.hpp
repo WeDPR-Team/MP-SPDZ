@@ -374,7 +374,7 @@ void Processor<sint, sgf2n>::read_socket_private(int client_id,
 template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::read_shares_from_file(int start_file_posn, int end_file_pos_register, const vector<int>& data_registers) {
   string filename;
-  filename = "Persistence/Transactions-P" + to_string(P.my_num()) + ".data";
+  filename = "Data-Shares/Transactions-P" + to_string(P.my_num()) + ".data";
 
   unsigned int size = data_registers.size();
 
@@ -401,6 +401,8 @@ void Processor<sint, sgf2n>::read_shares_from_file(int start_file_posn, int end_
 // Append share data in data_registers to end of file. Expects Persistence directory to exist.
 template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::write_shares_to_file(const vector<int>& data_registers) {
+  ofstream(Binary_File_IO::filename(P.my_num()), ios::out);
+
   string filename = binary_file_io.filename(P.my_num());
 
   unsigned int size = data_registers.size();
@@ -414,6 +416,26 @@ void Processor<sint, sgf2n>::write_shares_to_file(const vector<int>& data_regist
 
   binary_file_io.write_to_file(filename, inpbuf);
 }
+
+// template<class sint, class sgf2n>
+// void Processor<sint, sgf2n>::write_shares_to_file(const vector<int>& data_registers) {
+//   string dir = "Persistence";
+//   mkdir_p(dir.c_str());
+
+//   string filename;
+//   filename = dir + "/Transactions-P" + to_string(P.my_num()) + ".data";
+
+//   unsigned int size = data_registers.size();
+
+//   vector< sint > inpbuf (size);
+
+//   for (unsigned int i = 0; i < size; i++)
+//   {
+//     inpbuf[i] = get_Sp_ref(data_registers[i]);
+//   }
+
+//   binary_file_io.write_to_file(filename, inpbuf);
+// }
 
 template <class T>
 void SubProcessor<T>::POpen(const vector<int>& reg,const Player& P,int size)

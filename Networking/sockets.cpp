@@ -133,6 +133,6 @@ void close_client_socket(int socket)
     {
       char tmp[1000];
       sprintf(tmp, "close(%d)", socket);
-      error(tmp);
+      // error(tmp);
     }
 }

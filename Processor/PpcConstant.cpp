@@ -5,6 +5,7 @@ std::string PPC_PREFIX;
 int CONNETION_waiting_millisecond_FLAG = 0;
 bool DEBUG_FLAG = false;
 std::string PPC_DEBUG_PREFIEX = "PPC-LOG-";
+std::string JOB_ID = "";
 
 std::string get_prefix() {
     return PPC_PREFIX;
@@ -29,4 +30,12 @@ bool get_debug_flag() {
 
 void set_debug_flag(bool debug_flag) {
     DEBUG_FLAG = debug_flag;
+}
+
+const std::string& get_job_id() {
+    return JOB_ID;
+}
+
+void set_job_id(const std::string &id) {
+    JOB_ID = id;
 }
