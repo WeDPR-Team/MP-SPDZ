@@ -248,7 +248,9 @@ PlainPlayer::~PlainPlayer()
       /* Close down the sockets */
       for (auto socket : sockets)
         close_client_socket(socket);
-      close_client_socket(send_to_self_socket);
+      #ifndef PPC_COMMUNICATION
+        close_client_socket(send_to_self_socket);
+      #endif
     }
 }
 
