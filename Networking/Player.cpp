@@ -293,6 +293,7 @@ void PlainPlayer::setup_sockets(const vector<string>& names,
         auto pn = job_id + "-" + id_base + "-" + to_string(i);
         cerr << "Gateway pn: " << pn << endl;
         set_up_client_socket(sockets[i],names[i].c_str(),ports[i]);
+	octetStream("MPC").Send(sockets[i]);
         octetStream(pn).Send(sockets[i]);
     }
 #else
