@@ -93,12 +93,11 @@ class Names
    * Initialize from file. One party per line, format ``<hostname>[:<port>]``
    * @param player my number
    * @param pnb base port number
-   * @param hostsfile filename
    * @param players number of players (0 to take from file)
    */
-  void init(int player, int pnb, const string& hostsfile, int players = 0);
-  Names(int player, int pnb, const string& hostsfile) : Names()
-    { init(player, pnb, hostsfile); }
+  void init(int player, int pnb, const string& gateway, int players = 0);
+  Names(int player, int pnb, const string& gateway) : Names()
+    { init(player, pnb, gateway); }
 
   /**
    * Initialize from command-line options

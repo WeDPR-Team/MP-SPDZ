@@ -60,6 +60,16 @@ NetworkOptionsWithNumber::NetworkOptionsWithNumber(ez::ezOptionParser& opt,
             "--ip-file-name" // Flag token.
     );
 
+    opt.add(
+        "", // Default.
+        1, // Required?
+        1, // Number of args expected.
+        0, // Delimiter if expecting multiple args.
+        "gateway to connect", // Help description.
+        "-gateway", // Flag token.
+        "--gateway-endpoint" // Flag token.
+    );
+
     opt.parse(argc, argv);
 
     if (variable_nplayers)
@@ -67,16 +77,16 @@ NetworkOptionsWithNumber::NetworkOptionsWithNumber(ez::ezOptionParser& opt,
     else
         nplayers = default_nplayers;
 
-    opt.get("-ip")->getString(ip_filename);
+    opt.get("-gateway")->getString(gateway);
 
     opt.resetArgs();
 }
 
 Server* NetworkOptionsWithNumber::start_networking(Names& N, int my_num)
 {
-    if (ip_filename.length() > 0)
+    if (gateway.length() > 0)
     {
-        N.init(my_num, portnum_base, ip_filename, nplayers);
+        N.init(my_num, portnum_base, gateway, nplayers);
         return 0;
     }
     else

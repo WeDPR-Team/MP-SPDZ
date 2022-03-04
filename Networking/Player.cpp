@@ -43,43 +43,28 @@ void Names::init(int player,int pnb,vector<string> Nms)
 }
 
 // initialize names from file, no Server.x coordination.
-void Names::init(int player, int pnb, const string& filename, int nplayers_wanted)
+void Names::init(int player, int pnb, const string& gateway, int nplayers_wanted)
 {
-  ifstream hostsfile(filename.c_str());
-  if (hostsfile.fail())
-  {
-     stringstream ss;
-     ss << "Error opening " << filename << ". See HOSTS.example for an example.";
-     throw file_error(ss.str().c_str());
-  }
   player_no = player;
-  nplayers = 0;
+  nplayers = nplayers_wanted;
   portnum_base = pnb;
-  string line;
   ports.clear();
-  while (getline(hostsfile, line))
+  for (int i = 0; i < nplayers; i++)
   {
-    if (line.length() > 0 && line.at(0) != '#') {
-      auto pos = line.find(':');
+      auto pos = gateway.find(':');
       if (pos == string::npos)
       {
-        names.push_back(line);
+        names.push_back(gateway);
         ports.push_back(default_port(nplayers));
       }
       else
       {
-        names.push_back(line.substr(0, pos));
+        names.push_back(gateway.substr(0, pos));
         int port;
-        stringstream(line.substr(pos + 1)) >> port;
+        stringstream(gateway.substr(pos + 1)) >> port;
         ports.push_back(port);
       }
-      nplayers++;
-      if (nplayers_wanted > 0 and nplayers_wanted == nplayers)
-        break;
-    }
   }
-  if (nplayers_wanted > 0 and nplayers_wanted != nplayers)
-    throw runtime_error("not enought hosts in HOSTS");
 #ifdef DEBUG_NETWORKING
   cerr << "Got list of " << nplayers << " players from file: " << endl;
   for (unsigned int i = 0; i < names.size(); i++)

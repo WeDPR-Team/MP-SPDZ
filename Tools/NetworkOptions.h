@@ -25,7 +25,7 @@ class NetworkOptionsWithNumber : NetworkOptions
 {
 public:
     int nplayers;
-    std::string ip_filename;
+    std::string gateway;
 
     NetworkOptionsWithNumber(ez::ezOptionParser& opt, int argc,
             const char** argv, int default_nplayers, bool variable_nplayers);
