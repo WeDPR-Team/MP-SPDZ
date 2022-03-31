@@ -333,5 +333,15 @@ def pint_floordiv(self, other):
     return to_pint(pint_div(self, other))
 
 
+def write_matrix_to_file(matrix, matrix_row, matrix_col):
+    array_result = Array(matrix_row * matrix_col, matrix.value_type)
+    @for_range(matrix_row)
+    def _(i):
+        @for_range(matrix_col)
+        def _(j):
+            array_result[i*matrix_col+j] = matrix[i][j]
+    array_result.write_to_file()
+
+
 pint.__mod__ = pint_mod
 pint.__floordiv__ = pint_floordiv
