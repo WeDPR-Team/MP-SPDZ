@@ -334,12 +334,14 @@ def pint_floordiv(self, other):
 
 
 def write_matrix_to_file(matrix, matrix_row, matrix_col):
-    array_result = Array(matrix_row * matrix_col, matrix.value_type)
+    array_result = Array(matrix_row * matrix_col + 2, matrix.value_type)
+    array_result[0] = matrix.value_type(matrix_row)
+    array_result[1] = matrix.value_type(matrix_col)
     @for_range(matrix_row)
     def _(i):
         @for_range(matrix_col)
         def _(j):
-            array_result[i*matrix_col+j] = matrix[i][j]
+            array_result[2 + i*matrix_col+j] = matrix[i][j]
     array_result.write_to_file()
 
 
