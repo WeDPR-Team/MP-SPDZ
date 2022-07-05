@@ -15,7 +15,7 @@ OfflineMachine<W>::OfflineMachine(int argc, const char** argv,
         ez::ezOptionParser& opt, OnlineOptions& online_opts, V,
         int nplayers) :
         W(argc, argv, opt, online_opts, V(), nplayers), playerNames(
-                W::playerNames), P(*this->new_player("machine"))
+                W::playerNames), P(*this->new_player("M0"))
 {
     machine.load_schedule(online_opts.progname, false);
     Program program(playerNames.num_players());

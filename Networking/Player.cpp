@@ -20,7 +20,9 @@ void Names::init(int player,int pnb,int my_port,const char* servername)
   player_no=player;
   portnum_base=pnb;
   setup_names(servername, my_port);
+#ifndef PPC_COMMUNICATION
   setup_server();
+#endif
 }
 
 Names::Names(int player, int nplayers, const string& servername, int pnb,
@@ -41,49 +43,38 @@ void Names::init(int player,int pnb,vector<string> Nms)
 }
 
 // initialize names from file, no Server.x coordination.
-void Names::init(int player, int pnb, const string& filename, int nplayers_wanted)
+void Names::init(int player, int pnb, const string& gateway, int nplayers_wanted)
 {
-  ifstream hostsfile(filename.c_str());
-  if (hostsfile.fail())
-  {
-     stringstream ss;
-     ss << "Error opening " << filename << ". See HOSTS.example for an example.";
-     throw file_error(ss.str().c_str());
-  }
   player_no = player;
-  nplayers = 0;
+  nplayers = nplayers_wanted;
   portnum_base = pnb;
-  string line;
   ports.clear();
-  while (getline(hostsfile, line))
+  for (int i = 0; i < nplayers; i++)
   {
-    if (line.length() > 0 && line.at(0) != '#') {
-      auto pos = line.find(':');
+      auto pos = gateway.find(':');
       if (pos == string::npos)
       {
-        names.push_back(line);
+        names.push_back(gateway);
         ports.push_back(default_port(nplayers));
       }
       else
       {
-        names.push_back(line.substr(0, pos));
+        names.push_back(gateway.substr(0, pos));
         int port;
-        stringstream(line.substr(pos + 1)) >> port;
+        stringstream(gateway.substr(pos + 1)) >> port;
         ports.push_back(port);
       }
-      nplayers++;
-      if (nplayers_wanted > 0 and nplayers_wanted == nplayers)
-        break;
-    }
   }
-  if (nplayers_wanted > 0 and nplayers_wanted != nplayers)
-    throw runtime_error("not enought hosts in HOSTS");
 #ifdef DEBUG_NETWORKING
   cerr << "Got list of " << nplayers << " players from file: " << endl;
   for (unsigned int i = 0; i < names.size(); i++)
     cerr << "    " << names[i] << ":" << ports[i] << endl;
 #endif
+#ifdef PPC_COMMUNICATION
+  cerr << "Ppc communication model setup name finished!" << endl;
+#else
   setup_server();
+#endif
 }
 
 Names::Names(ez::ezOptionParser& opt, int argc, const char** argv,
@@ -125,7 +116,11 @@ void Names::setup_names(const char *servername, int my_port)
     my_port = default_port(player_no);
 
   int socket_num;
+#ifdef PPC_COMMUNICATION
+  int pn = portnum_base;
+#else
   int pn = portnum_base - 1;
+#endif
   set_up_client_socket(socket_num, servername, pn);
   octetStream("P" + to_string(player_no)).Send(socket_num);
 #ifdef DEBUG_NETWORKING
@@ -216,8 +211,13 @@ MultiPlayer<T>::MultiPlayer(const Names& Nms) :
 PlainPlayer::PlainPlayer(const Names& Nms, const string& id) :
         MultiPlayer<int>(Nms)
 {
-  if (Nms.num_players() > 1)
+  if (Nms.num_players() > 1){
+#ifdef PPC_COMMUNICATION
+    setup_sockets(Nms.names, Nms.ports, id);
+#else
     setup_sockets(Nms.names, Nms.ports, id, *Nms.server);
+#endif
+  }
 }
 
 
@@ -233,7 +233,9 @@ PlainPlayer::~PlainPlayer()
       /* Close down the sockets */
       for (auto socket : sockets)
         close_client_socket(socket);
-      close_client_socket(send_to_self_socket);
+      #ifndef PPC_COMMUNICATION
+        close_client_socket(send_to_self_socket);
+      #endif
     }
 }
 
@@ -260,11 +262,26 @@ PlayerBase::~PlayerBase()
 // Set up nmachines client and server sockets to send data back and fro
 //   A machine is a server between it and player i if i<=my_number
 //   Can also communicate with myself, but only with send_to and receive_from
+#ifdef PPC_COMMUNICATION
+void PlainPlayer::setup_sockets(const vector<string>& names,
+        const vector<int>& ports, const string& id_base)
+#else
 void PlainPlayer::setup_sockets(const vector<string>& names,
         const vector<int>& ports, const string& id_base, ServerSocket& server)
+#endif
 {
     sockets.resize(nplayers);
     // Set up the client side
+#ifdef PPC_COMMUNICATION
+    for (int i=0; i<nplayers; i++) { 
+        auto job_id = get_job_id();
+        auto pn = job_id + "-" + id_base + "-" + to_string(i);
+        cerr << "Gateway pn: " << pn << endl;
+        set_up_client_socket(sockets[i],names[i].c_str(),ports[i]);
+	octetStream("MPC").Send(sockets[i]);
+        octetStream(pn).Send(sockets[i]);
+    }
+#else
     for (int i=player_no; i<nplayers; i++) {
         auto pn=id_base+"P"+to_string(player_no);
         if (i==player_no) {
@@ -284,7 +301,9 @@ void PlainPlayer::setup_sockets(const vector<string>& names,
         }
         octetStream(pn).Send(sockets[i]);
     }
+#endif
     send_to_self_socket = sockets[player_no];
+#ifndef PPC_COMMUNICATION
     // Setting up the server side
     for (int i=0; i<=player_no; i++) {
         auto id=id_base+"P"+to_string(i);
@@ -295,7 +314,7 @@ void PlainPlayer::setup_sockets(const vector<string>& names,
 #endif
         sockets[i] = server.get_connection_socket(id);
     }
-
+#endif
     for (int i = 0; i < nplayers; i++) {
         // timeout of 5 minutes
         struct timeval tv;

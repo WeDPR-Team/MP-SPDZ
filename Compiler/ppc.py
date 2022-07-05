@@ -15,7 +15,7 @@ pnum = pfloat
 print_float_prec(7)
 
 # Use to limit the tester workload
-MAX_DATA_LENGTH = 500
+MAX_DATA_LENGTH = 500000
 MAX_ML_SIZE = 10000
 SECOND_LOOP_SIZE = 1000
 
@@ -331,6 +331,18 @@ def pint_truediv(self, other):
 
 def pint_floordiv(self, other):
     return to_pint(pint_div(self, other))
+
+
+def write_matrix_to_file(matrix, matrix_row, matrix_col):
+    array_result = Array(matrix_row * matrix_col + 2, matrix.value_type)
+    array_result[0] = matrix.value_type(matrix_row)
+    array_result[1] = matrix.value_type(matrix_col)
+    @for_range(matrix_row)
+    def _(i):
+        @for_range(matrix_col)
+        def _(j):
+            array_result[2 + i*matrix_col+j] = matrix[i][j]
+    array_result.write_to_file()
 
 
 pint.__mod__ = pint_mod

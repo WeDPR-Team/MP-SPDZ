@@ -166,8 +166,13 @@ Server* Server::start_networking(Names& N, int my_num, int nplayers,
 #endif
   assert(my_num >= 0);
   assert(my_num < nplayers);
+#ifndef PPC_COMMUNICATION
   Server* server = 0;
   pthread_t thread;
+#endif
+#ifdef PPC_COMMUNICATION
+    N.init(my_num, portnum, my_port, hostname.c_str());
+#else
   if (my_num == 0)
     {
       pthread_create(&thread, 0, Server::start_in_thread,
@@ -179,5 +184,6 @@ Server* Server::start_networking(Names& N, int my_num, int nplayers,
       pthread_join(thread, 0);
       delete server;
     }
+#endif
   return 0;
 }

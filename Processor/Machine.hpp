@@ -49,7 +49,7 @@ Machine<sint, sgf2n>::Machine(int my_number, Names& playerNames,
   // make directory for outputs if necessary
   mkdir_p(PREP_DIR);
 
-  string id = "machine";
+  string id = "M0";
   if (use_encryption)
     P = new CryptoPlayer(N, id);
   else
@@ -98,11 +98,11 @@ Machine<sint, sgf2n>::Machine(int my_number, Names& playerNames,
   load_schedule(progname_str);
 
   // remove persistence if necessary
-  for (auto& prog : progs)
-    {
-      if (prog.writes_persistance)
-        ofstream(Binary_File_IO::filename(my_number), ios::out);
-    }
+  // for (auto& prog : progs)
+  //   {
+  //     if (prog.writes_persistance)
+  //       ofstream(Binary_File_IO::filename(my_number), ios::out);
+  //   }
 
 #ifdef VERBOSE
   progs[0].print_offline_cost();

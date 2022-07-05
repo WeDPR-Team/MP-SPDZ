@@ -80,6 +80,16 @@ OnlineMachine::OnlineMachine(int argc, const char** argv, ez::ezOptionParser& op
       "--ip-file-name" // Flag token.
     );
 
+    opt.add(
+        "", // Default.
+        1, // Required?
+        1, // Number of args expected.
+        0, // Delimiter if expecting multiple args.
+        "gateway to connect", // Help description.
+        "-gateway", // Flag token.
+        "--gateway-endpoint" // Flag token.
+    );
+
     if (nplayers == 0)
         opt.add(
                 "2", // Default.
@@ -181,7 +191,7 @@ void OnlineMachine::start_networking()
 
     opt.get("--portnumbase")->getInt(pnbase);
     opt.get("--hostname")->getString(hostname);
-    opt.get("--ip-file-name")->getString(ipFileName);
+    opt.get("--gateway-endpoint")->getString(ipFileName);
 
     ez::OptionGroup* mp_opt = opt.get("--my-port");
     if (mp_opt->isSet)
@@ -197,6 +207,7 @@ void OnlineMachine::start_networking()
         throw runtime_error("cannot set port number when using IP file");
       if (nplayers == 0 and opt.isSet("-N"))
         opt.get("-N")->getInt(nplayers);
+      cerr << "Ppc communication model setup name started!" << endl;
       playerNames.init(playerno, pnbase, ipFileName, nplayers);
     } else {
       if (not opt.get("-ext-server")->isSet)

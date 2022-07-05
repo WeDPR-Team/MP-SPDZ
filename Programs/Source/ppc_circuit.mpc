@@ -10,7 +10,8 @@ source2_record = read_array(SOURCE2, 1, pint)
 
 def ppc_main(source0_record, source1_record, source2_record):
 
-    num_xor = source0_record[0].bit_xor(source1_record[0])
+    # num_xor = source0_record[0].bit_xor(source1_record[0])
+    num_xor = source0_record[0] ^ source1_record[0]
     num_and = source0_record[0].bit_and(source2_record[0])
     num_not = source1_record[0].bit_not()
 

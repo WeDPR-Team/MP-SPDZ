@@ -1,4 +1,5 @@
 #include "Processor/Binary_File_IO.h"
+#include "Processor/PpcConstant.h"
 
 /* 
  * Provides generalised file read and write methods for arrays of shares.
@@ -10,7 +11,8 @@ inline string Binary_File_IO::filename(int my_number)
 {
   string dir = "Persistence";
   mkdir_p(dir.c_str());
-  return dir + "/Transactions-P" + to_string(my_number) + ".data";
+  // return dir + "/Transactions-P" + to_string(my_number) + ".data";
+  return dir + "/" + get_job_id() + "-" + to_string(my_number) + ".data";
 }
 
 template<class T> 

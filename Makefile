@@ -16,6 +16,12 @@ GC_SEMI = GC/SemiSecret.o GC/SemiPrep.o GC/square64.o
 
 OT = $(patsubst %.cpp,%.o,$(wildcard OT/*.cpp))
 OT_EXE = ot.x ot-offline.x
+# CFLAGS += -DVERBOSE_COMM
+# CFLAGS += -DDEBUG_THREADS
+# CFLAGS += -DDEBUG_THREAD_QUEUE
+# CFLAGS += -DDEBUG_NETWORKING
+CFLAGS += -DINSECURE
+CFLAGS += -DPPC_COMMUNICATION
 
 COMMONOBJS = $(MATH) $(TOOLS) $(NETWORK) GC/square64.o Processor/OnlineOptions.o Processor/BaseMachine.o Processor/DataPositions.o Processor/ThreadQueues.o Processor/ThreadQueue.o
 COMPLETE = $(COMMON) $(PROCESSOR) $(FHEOFFLINE) $(TINYOTOFFLINE) $(GC) $(OT)
@@ -163,6 +169,12 @@ bmr-clean:
 	-rm BMR/*.o BMR/*/*.o GC/*.o
 
 bankers-bonus-client.x: ExternalIO/bankers-bonus-client.cpp $(COMMON)
+	$(CXX) $(CFLAGS) -o $@ $^ $(LDLIBS)
+
+ppc-receiver-client.x: ExternalIO/ppc-receiver-client.cpp $(COMMON)
+	$(CXX) $(CFLAGS) -o $@ $^ $(LDLIBS)
+
+ppc-sender-client.x: ExternalIO/ppc-sender-client.cpp $(COMMON)
 	$(CXX) $(CFLAGS) -o $@ $^ $(LDLIBS)
 
 simple-offline.x: $(FHEOFFLINE)

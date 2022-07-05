@@ -209,6 +209,14 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
             "-DBG",                        // Flag token.
             "--debug"       // Flag token.
         );
+    opt.add("",                      // Default.
+            1,                           // Required?
+            1,                           // Number of args expected.
+            0,                           // Delimiter if expecting multiple args.
+            "7 bytes job id",  // Help description.
+            "-ID",                        // Flag token.
+            "--job-id"       // Flag token.
+        );
      opt.add("",
             0, // Required?
             0, // Number of args expected.
@@ -249,6 +257,10 @@ OnlineOptions::OnlineOptions(ez::ezOptionParser& opt, int argc,
     set_connection_waiting_millisecond_flag(connection_waiting_flag);
     bool debug_flag = opt.isSet("--debug");
     set_debug_flag(debug_flag);
+
+    std::string job_id;
+    opt.get("-ID")->getString(job_id);
+    set_job_id(job_id);
 
     direct = opt.isSet("--direct");
 
