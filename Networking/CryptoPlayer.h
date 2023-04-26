@@ -20,7 +20,6 @@
  */
 class CryptoPlayer : public MultiPlayer<ssl_socket*>
 {
-    PlainPlayer plaintext_player, other_player;
     ssl_ctx ctx;
     boost::asio::io_service io_service;
 
@@ -28,6 +27,8 @@ class CryptoPlayer : public MultiPlayer<ssl_socket*>
 
     vector<Sender<ssl_socket*>*> senders;
     vector<Receiver<ssl_socket*>*> receivers;
+
+    void connect(int other, vector<int>* plaintext_sockets);
 
 public:
     /**
@@ -44,6 +45,11 @@ public:
 
     void send_to_no_stats(int other, const octetStream& o) const;
     void receive_player_no_stats(int other, octetStream& o) const;
+
+    size_t send_no_stats(int player, const PlayerBuffer& buffer,
+            bool block) const;
+    size_t recv_no_stats(int player, const PlayerBuffer& buffer,
+            bool block) const;
 
     void exchange_no_stats(int other, const octetStream& to_send,
         octetStream& to_receive) const;

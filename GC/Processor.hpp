@@ -15,6 +15,7 @@ using namespace std;
 #include "GC/Program.h"
 #include "Access.h"
 #include "Processor/FixInput.h"
+#include "Math/BitVec.h"
 
 #include "GC/Machine.hpp"
 #include "Processor/ProcessorBase.hpp"
@@ -89,15 +90,15 @@ U GC::Processor<T>::get_long_input(const int* params,
     else
         res = input_proc.get_input<FixInput_<U>>(interactive,
                 &params[1]).items[0];
-    int n_bits = *params;
-    check_input(res, n_bits);
+    check_input(res, params);
     return res;
 }
 
 template<class T>
 template<class U>
-void GC::Processor<T>::check_input(const U& in, int n_bits)
+void GC::Processor<T>::check_input(const U& in, const int* params)
 {
+	int n_bits = *params;
 	auto test = in >> (n_bits - 1);
 	if (n_bits == 1)
 	{
@@ -106,9 +107,17 @@ void GC::Processor<T>::check_input(const U& in, int n_bits)
 	}
 	else if (not (test == 0 or test == -1))
 	{
-		throw runtime_error(
-				"input too large for a " + std::to_string(n_bits)
-						+ "-bit signed integer: " + to_string(in));
+		if (params[1] == 0)
+			throw runtime_error(
+					"input out of range for a " + std::to_string(n_bits)
+							+ "-bit signed integer: " + to_string(in));
+		else
+			throw runtime_error(
+					"input out of range for a " + to_string(n_bits)
+							+ "-bit fixed-point number with "
+							+ to_string(params[1]) + "-bit precision: "
+							+ to_string(
+									mpf_class(bigint(in)) * exp2(-params[1])));
 	}
 }
 
@@ -197,9 +206,13 @@ template<class U>
 void Processor<T>::mem_op(int n, Memory<U>& dest, const Memory<U>& source,
         Integer dest_address, Integer source_address)
 {
+    dest.check_index(dest_address + n - 1);
+    source.check_index(source_address + n - 1);
+    auto d = &dest[dest_address];
+    auto s = &source[source_address];
     for (int i = 0; i < n; i++)
     {
-        dest[dest_address + i] = source[source_address + i];
+        *d++ = *s++;
     }
 }
 
@@ -295,6 +308,40 @@ void Processor<T>::and_(const vector<int>& args, bool repeat)
 }
 
 template <class T>
+void Processor<T>::andrsvec(const vector<int>& args)
+{
+    int N_BITS = T::default_length;
+    auto it = args.begin();
+    while (it < args.end())
+    {
+        int n_args = (*it++ - 3) / 2;
+        int size = *it++;
+        int base = *(it + n_args);
+        assert(n_args <= N_BITS);
+        for (int i = 0; i < size; i += 1)
+        {
+            if (i % N_BITS == 0)
+                for (int j = 0; j < n_args; j++)
+                    S.at(*(it + j) + i / N_BITS).resize_regs(
+                            min(N_BITS, size - i));
+
+            T y;
+            y.get_regs().push_back(S.at(base + i / N_BITS).get_reg(i % N_BITS));
+            for (int j = 0; j < n_args; j++)
+            {
+                T x, tmp;
+                x.get_regs().push_back(
+                        S.at(*(it + n_args + 1 + j) + i / N_BITS).get_reg(
+                                i % N_BITS));
+                tmp.and_(1, x, y, false);
+                S.at(*(it + j) + i / N_BITS).get_reg(i % N_BITS) = tmp.get_reg(0);
+            }
+        }
+        it += 2 * n_args + 1;
+    }
+}
+
+template <class T>
 void Processor<T>::input(const vector<int>& args)
 {
     InputArgList a(args);
@@ -321,6 +368,18 @@ void Processor<T>::reveal(const vector<int>& args)
             S[r1 + i].reveal(min(Clear::N_BITS, n - i * Clear::N_BITS),
                     C[r0 + i]);
     }
+}
+
+template <class T>
+template <int>
+void Processor<T>::convcbit2s(const BaseInstruction& instruction)
+{
+    int unit = GC::Clear::N_BITS;
+    auto& share_thread = ShareThread<T>::s();
+    for (int i = 0; i < DIV_CEIL(instruction.get_n(), unit); i++)
+        S[instruction.get_r(0) + i] = T::constant(C[instruction.get_r(1) + i],
+                share_thread.P->my_num(), share_thread.MC->get_alphai(),
+                min(size_t(unit), instruction.get_n() - i * unit));
 }
 
 template <class T>

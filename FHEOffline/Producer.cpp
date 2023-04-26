@@ -167,6 +167,8 @@ string open_prep_file(ofstream& outf, string data_type, int my_num, int thread_n
         throw runtime_error("cannot create directory " + dir);
     string file = prep_filename<T>(data_type, my_num, thread_num, initial, dir);
     outf.open(file.c_str(),ios::out | ios::binary | (clear ? ios::trunc : ios::app));
+    if (clear)
+        file_signature<Share<T>>().output(outf);
     if (outf.fail()) { throw file_error(file); }
     return file;
 }
@@ -516,6 +518,7 @@ InputProducer<FD>::InputProducer(const Player& P, int thread_num,
             if (thread_num)
                 file << "-" << thread_num;
             outf[j].open(file.str().c_str(), ios::out | ios::binary);
+            file_signature<Share<T>>().output(outf[j]);
             if (outf[j].fail())
             {
                 throw file_error(file.str());
@@ -574,7 +577,7 @@ void InputProducer<FD>::run(const Player& P, const FHE_PK& pk,
     for (int j = min; j < max; j++)
     {
         AddableVector<Ciphertext> C;
-        vector<Plaintext_<FD>> m(EC.machine->sec, FieldD);
+        vector<Plaintext_<FD>> m(personal_EC.proof.U, FieldD);
         if (j == P.my_num())
         {
             for (auto& x : m)

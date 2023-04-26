@@ -7,11 +7,7 @@
 #define GC_SHARETHREAD_H_
 
 #include "Thread.h"
-#include "MaliciousRepSecret.h"
-#include "RepPrep.h"
-#include "SemiHonestRepPrep.h"
 #include "Processor/Data_Files.h"
-#include "Protocols/ReplicatedInput.h"
 
 #include <array>
 
@@ -32,9 +28,9 @@ public:
 
     Preprocessing<T>& DataF;
 
-    ShareThread(const Names& N, OnlineOptions& opts, DataPositions& usage);
-    ShareThread(const Names& N, OnlineOptions& opts, Player& P,
-            typename T::mac_key_type mac_key, DataPositions& usage);
+    ShareThread(Preprocessing<T>& prep);
+    ShareThread(Preprocessing<T>& prep, Player& P,
+            typename T::mac_key_type mac_key);
     virtual ~ShareThread();
 
     virtual typename T::MC* new_mc(typename T::mac_key_type mac_key)
@@ -42,8 +38,10 @@ public:
 
     void pre_run(Player& P, typename T::mac_key_type mac_key);
     void post_run();
+    void check();
 
     void and_(Processor<T>& processor, const vector<int>& args, bool repeat);
+    void andrsvec(Processor<T>& processor, const vector<int>& args);
     void xors(Processor<T>& processor, const vector<int>& args);
 };
 
@@ -54,12 +52,10 @@ public:
     DataPositions usage;
 
     StandaloneShareThread(int i, ThreadMaster<T>& master);
+    ~StandaloneShareThread();
 
     void pre_run();
     void post_run() { ShareThread<T>::post_run(); }
-
-    NamedCommStats comm_stats()
-    { return Thread<T>::comm_stats() + this->DataF.comm_stats(); }
 };
 
 template<class T>
