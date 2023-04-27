@@ -5,12 +5,12 @@
 #include "Processor/Program.h"
 #include "Processor/PpcConstant.h"
 #include "GC/square64.h"
+#include "SpecificPrivateOutput.h"
 
-#include "Protocols/ReplicatedInput.hpp"
-#include "Protocols/ReplicatedPrivateOutput.hpp"
 #include "Processor/ProcessorBase.hpp"
 #include "GC/Processor.hpp"
 #include "GC/ShareThread.hpp"
+#include "Protocols/SecureShuffle.hpp"
 
 #include <sodium.h>
 #include <string>
@@ -25,12 +25,13 @@ SubProcessor<T>::SubProcessor(ArithmeticProcessor& Proc, typename T::MAC_Check& 
 template <class T>
 SubProcessor<T>::SubProcessor(typename T::MAC_Check& MC,
     Preprocessing<T>& DataF, Player& P, ArithmeticProcessor* Proc) :
+    shuffler(*this),
     Proc(Proc), MC(MC), P(P), DataF(DataF), protocol(P), input(*this, MC),
     bit_prep(bit_usage)
 {
   DataF.set_proc(this);
+  protocol.init(DataF, MC);
   DataF.set_protocol(protocol);
-  protocol.init_mul(this);
   bit_usage.set_num_players(P.num_players());
   personal_bit_preps.resize(P.num_players());
   for (int i = 0; i < P.num_players(); i++)
@@ -40,22 +41,12 @@ SubProcessor<T>::SubProcessor(typename T::MAC_Check& MC,
 template<class T>
 SubProcessor<T>::~SubProcessor()
 {
-  protocol.check();
-
   for (size_t i = 0; i < personal_bit_preps.size(); i++)
     {
       auto& x = personal_bit_preps[i];
-#ifdef VERBOSE
-      if (x->data_sent())
-        cerr << "Sent for personal bit preprocessing threads of player " << i << ": " <<
-              x->data_sent() * 1e-6 << " MB" << endl;
-#endif
       delete x;
     }
 #ifdef VERBOSE
-  if (bit_prep.data_sent())
-    cerr << "Sent for global bit preprocessing threads: " <<
-        bit_prep.data_sent() * 1e-6 << " MB" << endl;
   if (not bit_usage.empty())
     {
       cerr << "Mixed-circuit preprocessing cost:" << endl;
@@ -65,18 +56,38 @@ SubProcessor<T>::~SubProcessor()
 }
 
 template<class sint, class sgf2n>
+inline ofstream& Processor<sint, sgf2n>::get_public_output()
+{
+  if (not public_output.is_open())
+    public_output.open(get_filename(PREP_DIR "Public-Output-", true).c_str(),
+        ios_base::out);
+
+  return public_output;
+}
+
+template<class sint, class sgf2n>
+inline ofstream& Processor<sint, sgf2n>::get_binary_output()
+{
+  if (not binary_output.is_open())
+    binary_output.open(
+        get_parameterized_filename(P.my_num(), thread_num,
+            PREP_DIR "Binary-Output"), ios_base::out);
+
+  return binary_output;
+}
+
+template<class sint, class sgf2n>
 Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
         typename sgf2n::MAC_Check& MC2,typename sint::MAC_Check& MCp,
         Machine<sint, sgf2n>& machine,
         const Program& program)
 : ArithmeticProcessor(machine.opts, thread_num),DataF(machine, &Procp, &Proc2),P(P),
   MC2(MC2),MCp(MCp),machine(machine),
-  share_thread(machine.get_N(), machine.opts, P, machine.get_bit_mac_key(), DataF.usage),
+  share_thread(DataF.DataFb, P, machine.get_bit_mac_key()),
   Procb(machine.bit_memories),
   Proc2(*this,MC2,DataF.DataF2,P),Procp(*this,MCp,DataF.DataFp,P),
-  privateOutput2(Proc2),privateOutputp(Procp),
-  external_clients(P.my_num()),
-  binary_file_io(Binary_File_IO())
+  external_clients(machine.external_clients),
+  binary_file_io(Binary_File_IO()), client_timer(client_stats.timer)
 {
   reset(program,0);
 
@@ -84,32 +95,24 @@ Processor<sint, sgf2n>::Processor(int thread_num,Player& P,
   public_input.open(public_input_filename);
   private_input_filename = (get_filename(PREP_DIR "Private-Input-",true));
   private_input.open(private_input_filename.c_str());
-  public_output.open(get_filename(PREP_DIR "Public-Output-",true).c_str(), ios_base::out);
-  private_output.open(get_filename(PREP_DIR "Private-Output-",true).c_str(), ios_base::out);
-  binary_output.open(
-      get_parameterized_filename(P.my_num(), thread_num,
-          PREP_DIR "Binary-Output"), ios_base::out);
 
   open_input_file(P.my_num(), thread_num, machine.opts.cmd_private_input_file);
+
+  string input_prefix = machine.opts.cmd_private_input_file;
+  if (input_prefix == OnlineOptions().cmd_private_input_file
+      or input_prefix == ".")
+    input_prefix = PREP_DIR "Input-Binary";
+  else
+    input_prefix += "-Binary";
+  binary_input_filename = get_parameterized_filename(P.my_num(), thread_num,
+      input_prefix);
+  binary_input.open(binary_input_filename);
 
   secure_prng.ReSeed();
   shared_prng.SeedGlobally(P, false);
 
-  // only output on party 0 if not interactive
-  bool always_stdout = machine.opts.cmd_private_output_file == ".";
-  bool output = P.my_num() == 0 or machine.opts.interactive or always_stdout;
-  out.activate(output);
-  Procb.out.activate(output);
-
-  if (not always_stdout)
-    setup_redirection(P.my_num(), thread_num, opts);
-
-  if (stdout_redirect_file.is_open())
-  {
-    out.redirect_to_file(stdout_redirect_file);
-    Procb.out.redirect_to_file(stdout_redirect_file);
-  }
-
+  setup_redirection(P.my_num(), thread_num, opts, out);
+  Procb.out = out;
 }
 
 
@@ -121,6 +124,10 @@ Processor<sint, sgf2n>::~Processor()
   if (sent)
     cerr << "Opened " << sent << " elements in " << rounds << " rounds" << endl;
 #endif
+  if (OnlineOptions::singleton.verbose and client_timer.elapsed())
+    cerr << "Client communication: " << client_stats.data * 1e-6 << " MB in "
+        << client_timer.elapsed() << " seconds and " << client_stats.rounds
+        << " rounds " << endl;
 }
 
 template<class sint, class sgf2n>
@@ -153,18 +160,21 @@ void Processor<sint, sgf2n>::reset(const Program& program,int arg)
   Procb.reset(program);
 }
 
+template<class T>
+void SubProcessor<T>::check()
+{
+  // protocol check before last MAC check
+  protocol.check();
+  // MACCheck
+  MC.Check(P);
+}
+
 template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::check()
 {
-  // protocol check before last MAC check
-  Procp.protocol.check();
-  Proc2.protocol.check();
-  share_thread.protocol->check();
-
-  // MACCheck
-  MC2.Check(P);
-  MCp.Check(P);
-  share_thread.MC->Check(P);
+  Procp.check();
+  Proc2.check();
+  share_thread.check();
 
   //cout << num << " : Checking broadcast" << endl;
   P.Check_Broadcast();
@@ -234,17 +244,6 @@ void Processor<sint, sgf2n>::convcintvec(const Instruction& instruction)
 }
 
 template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::convcbit2s(const Instruction& instruction)
-{
-  int unit = GC::Clear::N_BITS;
-  for (int i = 0; i < DIV_CEIL(instruction.get_n(), unit); i++)
-    Procb.S[instruction.get_r(0) + i] = sint::bit_type::constant(
-        Procb.C[instruction.get_r(1) + i], P.my_num(),
-        share_thread.MC->get_alphai(),
-        min(unsigned(unit), instruction.get_n() - i * unit));
-}
-
-template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::split(const Instruction& instruction)
 {
   int n = instruction.get_n();
@@ -267,8 +266,9 @@ void Processor<sint, sgf2n>::split(const Instruction& instruction)
 // If message_type is > 0, send message_type in bytes 0 - 3, to allow an external client to
 //  determine the data structure being sent in a message.
 template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::write_socket(const RegType reg_type, int socket_id,
-    int message_type, const vector<int>& registers, int size)
+void Processor<sint, sgf2n>::write_socket(const RegType reg_type,
+    bool send_macs, int socket_id, int message_type,
+    const vector<int>& registers, int size)
 {
   int m = registers.size();
   socket_stream.reset_write_head();
@@ -278,15 +278,19 @@ void Processor<sint, sgf2n>::write_socket(const RegType reg_type, int socket_id,
     socket_stream.store(message_type);
   }
 
+  auto rec_factor = sint::get_rec_factor(P.my_num(), P.num_players());
+
   for (int j = 0; j < size; j++)
     {
       for (int i = 0; i < m; i++)
         {
           if (reg_type == SINT)
             {
-              // Send vector of secret shares
-              get_Sp_ref(registers[i] + j).pack(socket_stream,
-                  sint::get_rec_factor(P.my_num(), P.num_players()));
+              // Send vector of secret shares and optionally macs
+              if (send_macs)
+                get_Sp_ref(registers[i] + j).pack(socket_stream);
+              else
+                get_Sp_ref(registers[i] + j).pack(socket_stream, rec_factor);
             }
           else if (reg_type == CINT)
             {
@@ -314,6 +318,7 @@ void Processor<sint, sgf2n>::write_socket(const RegType reg_type, int socket_id,
 #endif
 
   try {
+    TimeScope _(client_stats.add(socket_stream.get_length()));
     socket_stream.Send(external_clients.get_socket(socket_id));
   }
     catch (bad_value& e) {
@@ -330,7 +335,10 @@ void Processor<sint, sgf2n>::read_socket_ints(int client_id,
 {
   int m = registers.size();
   socket_stream.reset_write_head();
+  client_timer.start();
   socket_stream.Receive(external_clients.get_socket(client_id));
+  client_timer.stop();
+  client_stats.add(socket_stream.get_length());
   for (int j = 0; j < size; j++)
     for (int i = 0; i < m; i++)
       {
@@ -347,7 +355,10 @@ void Processor<sint, sgf2n>::read_socket_vector(int client_id,
 {
   int m = registers.size();
   socket_stream.reset_write_head();
+  client_timer.start();
   socket_stream.Receive(external_clients.get_socket(client_id));
+  client_timer.stop();
+  client_stats.add(socket_stream.get_length());
   for (int j = 0; j < size; j++)
     for (int i = 0; i < m; i++)
       get_Cp_ref(registers[i] + j) =
@@ -361,7 +372,10 @@ void Processor<sint, sgf2n>::read_socket_private(int client_id,
 {
   int m = registers.size();
   socket_stream.reset_write_head();
+  client_timer.start();
   socket_stream.Receive(external_clients.get_socket(client_id));
+  client_timer.stop();
+  client_stats.add(socket_stream.get_length());
 
   for (int j = 0; j < size; j++)
     for (int i = 0; i < m; i++)
@@ -374,6 +388,9 @@ void Processor<sint, sgf2n>::read_socket_private(int client_id,
 // Tolerent to no file if no shares yet persisted.
 template<class sint, class sgf2n>
 void Processor<sint, sgf2n>::read_shares_from_file(int start_file_posn, int end_file_pos_register, const vector<int>& data_registers) {
+  if (not sint::real_shares(P))
+    return;
+
   string filename;
   // filename = "Data-Shares/Transactions-P" + to_string(P.my_num()) + ".data";
   filename = "Data-Shares/" + get_job_id() +  "-" + to_string(P.my_num()) + ".data";
@@ -402,9 +419,14 @@ void Processor<sint, sgf2n>::read_shares_from_file(int start_file_posn, int end_
 
 // Append share data in data_registers to end of file. Expects Persistence directory to exist.
 template<class sint, class sgf2n>
-void Processor<sint, sgf2n>::write_shares_to_file(const vector<int>& data_registers) {
-  ofstream(Binary_File_IO::filename(P.my_num()), ios::out);
+void Processor<sint, sgf2n>::write_shares_to_file(long start_pos,
+    const vector<int>& data_registers)
+{
+  if (not sint::real_shares(P))
+    return;
 
+  ofstream(Binary_File_IO::filename(P.my_num()), ios::out);
+  
   string filename = binary_file_io.filename(P.my_num());
 
   unsigned int size = data_registers.size();
@@ -416,12 +438,16 @@ void Processor<sint, sgf2n>::write_shares_to_file(const vector<int>& data_regist
     inpbuf[i] = get_Sp_ref(data_registers[i]);
   }
 
-  binary_file_io.write_to_file(filename, inpbuf);
+  binary_file_io.write_to_file(filename, inpbuf, start_pos);
 }
 
 template <class T>
-void SubProcessor<T>::POpen(const vector<int>& reg,const Player& P,int size)
+void SubProcessor<T>::POpen(const Instruction& inst)
 {
+  if (inst.get_n())
+    check();
+  auto& reg = inst.get_start();
+  int size = inst.get_size();
   assert(reg.size() % 2 == 0);
   int sz=reg.size() / 2;
   MC.init_open(P, sz * size);
@@ -447,7 +473,7 @@ void SubProcessor<T>::muls(const vector<int>& reg, int size)
     int n = reg.size() / 3;
 
     SubProcessor<T>& proc = *this;
-    protocol.init_mul(&proc);
+    protocol.init_mul();
     for (int i = 0; i < n; i++)
         for (int j = 0; j < size; j++)
         {
@@ -472,7 +498,7 @@ void SubProcessor<T>::mulrs(const vector<int>& reg)
     int n = reg.size() / 4;
 
     SubProcessor<T>& proc = *this;
-    protocol.init_mul(&proc);
+    protocol.init_mul();
     for (int i = 0; i < n; i++)
         for (int j = 0; j < reg[4 * i]; j++)
         {
@@ -494,7 +520,7 @@ void SubProcessor<T>::mulrs(const vector<int>& reg)
 template<class T>
 void SubProcessor<T>::dotprods(const vector<int>& reg, int size)
 {
-    protocol.init_dotprod(this);
+    protocol.init_dotprod();
     for (int i = 0; i < size; i++)
     {
         auto it = reg.begin();
@@ -526,7 +552,7 @@ void SubProcessor<T>::dotprods(const vector<int>& reg, int size)
 
 template<class T>
 void SubProcessor<T>::matmuls(const vector<T>& source,
-        const Instruction& instruction, int a, int b)
+        const Instruction& instruction, size_t a, size_t b)
 {
     auto& dim = instruction.get_start();
     auto A = source.begin() + a;
@@ -536,7 +562,7 @@ void SubProcessor<T>::matmuls(const vector<T>& source,
     assert(B + dim[1] * dim[2] <= source.end());
     assert(C + dim[0] * dim[2] <= S.end());
 
-    protocol.init_dotprod(this);
+    protocol.init_dotprod();
     for (int i = 0; i < dim[0]; i++)
         for (int j = 0; j < dim[2]; j++)
         {
@@ -553,40 +579,82 @@ void SubProcessor<T>::matmuls(const vector<T>& source,
 
 template<class T>
 void SubProcessor<T>::matmulsm(const CheckVector<T>& source,
-        const Instruction& instruction, int a, int b)
+        const Instruction& instruction, size_t a, size_t b)
 {
     auto& dim = instruction.get_start();
     auto C = S.begin() + (instruction.get_r(0));
     assert(C + dim[0] * dim[2] <= S.end());
     assert(Proc);
 
-    protocol.init_dotprod(this);
+    int base = 0;
+    int base2 = 0;
+    protocol.init_dotprod();
     for (int i = 0; i < dim[0]; i++)
     {
         auto ii = Proc->get_Ci().at(dim[3] + i);
         for (int j = 0; j < dim[2]; j++)
         {
-            auto jj = Proc->get_Ci().at(dim[6] + j);
-            for (int k = 0; k < dim[1]; k++)
+#ifdef DEBUG_MATMULSM
+            cerr << "matmulsm prep " << i << " " << j << endl;
+#endif
+            matmulsm_prep(ii, j, source, dim, a, b);
+            if (protocol.get_buffer_size() > OnlineOptions::singleton.batch_size)
             {
-                auto kk = Proc->get_Ci().at(dim[4] + k);
-                auto ll = Proc->get_Ci().at(dim[5] + k);
-                protocol.prepare_dotprod(source.at(a + ii * dim[7] + kk),
-                        source.at(b + ll * dim[8] + jj));
+#ifdef DEBUG_MATMULSM
+                cerr << "matmulsm round " << protocol.get_buffer_size() << endl;
+#endif
+                protocol.exchange();
+                if (base < i)
+                    for (int l = base2; l < dim[2]; l++)
+                        matmulsm_finalize(base, l, dim, C);
+                for (int k = base + 1; k < i; k++)
+                    for (int l = 0; l < dim[2]; l++)
+                        matmulsm_finalize(k, l, dim, C);
+                for (int l = base < i ? 0 : base2; l <= j; l++)
+                    matmulsm_finalize(i, l, dim, C);
+                base = i;
+                base2 = j + 1;
+                protocol.init_dotprod();
             }
-            protocol.next_dotprod();
         }
     }
     protocol.exchange();
-    for (int i = 0; i < dim[0]; i++)
+    for (int j = base2; j < dim[2]; j++)
+        matmulsm_finalize(base, j, dim, C);
+    for (int i = base + 1; i < dim[0]; i++)
         for (int j = 0; j < dim[2]; j++)
-            *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
+            matmulsm_finalize(i, j, dim, C);
+}
+
+template<class T>
+void SubProcessor<T>::matmulsm_prep(int ii, int j, const CheckVector<T>& source,
+        const vector<int>& dim, size_t a, size_t b)
+{
+    auto jj = Proc->get_Ci().at(dim[6] + j);
+    for (int k = 0; k < dim[1]; k++)
+    {
+        auto kk = Proc->get_Ci().at(dim[4] + k);
+        auto ll = Proc->get_Ci().at(dim[5] + k);
+        protocol.prepare_dotprod(source.at(a + ii * dim[7] + kk),
+                source.at(b + ll * dim[8] + jj));
+    }
+    protocol.next_dotprod();
+}
+
+template<class T>
+void SubProcessor<T>::matmulsm_finalize(int i, int j, const vector<int>& dim,
+        typename vector<T>::iterator C)
+{
+#ifdef DEBUG_MATMULSM
+            cerr << "matmulsm finalize " << i << " " << j << endl;
+#endif
+    *(C + i * dim[2] + j) = protocol.finalize_dotprod(dim[1]);
 }
 
 template<class T>
 void SubProcessor<T>::conv2ds(const Instruction& instruction)
 {
-    protocol.init_dotprod(this);
+    protocol.init_dotprod();
     auto& args = instruction.get_start();
     int output_h = args[0], output_w = args[1];
     int inputs_h = args[2], inputs_w = args[3];
@@ -669,6 +737,40 @@ void SubProcessor<T>::conv2ds(const Instruction& instruction)
 }
 
 template<class T>
+void SubProcessor<T>::secure_shuffle(const Instruction& instruction)
+{
+    typename T::Protocol::Shuffler(S, instruction.get_size(),
+            instruction.get_n(), instruction.get_r(0), instruction.get_r(1),
+            *this);
+}
+
+template<class T>
+size_t SubProcessor<T>::generate_secure_shuffle(const Instruction& instruction)
+{
+    return shuffler.generate(instruction.get_n());
+}
+
+template<class T>
+void SubProcessor<T>::apply_shuffle(const Instruction& instruction, int handle)
+{
+    shuffler.apply(S, instruction.get_size(), instruction.get_start()[2],
+            instruction.get_start()[0], instruction.get_start()[1], handle,
+            instruction.get_start()[4]);
+}
+
+template<class T>
+void SubProcessor<T>::delete_shuffle(int handle)
+{
+    shuffler.del(handle);
+}
+
+template<class T>
+void SubProcessor<T>::inverse_permutation(const Instruction& instruction) {
+    shuffler.inverse_permutation(S, instruction.get_size(), instruction.get_start()[0],
+                                 instruction.get_start()[1]);
+}
+
+template<class T>
 void SubProcessor<T>::input_personal(const vector<int>& args)
 {
   input.reset_all(P);
@@ -686,6 +788,47 @@ void SubProcessor<T>::input_personal(const vector<int>& args)
       S[args[i + 2] + j] = input.finalize(args[i + 1]);
 }
 
+/**
+ *
+ * @tparam T
+ * @param args Args contains four arguments
+ *      a[0] = the size of the input (and output) vector
+ *      a[1] = the player to which to reveal the output
+ *      a[2] = the memory address of the input vector (sint) (i.e. the value to reveal)
+ *      a[3] = the memory address of the output vector (cint) (i.e. the register to store the revealed value)
+ * // TODO: When would there be multiple sets of arguments? (for ... i < args.size(); i += 4 ... )
+ */
+template<class T>
+void SubProcessor<T>::private_output(const vector<int>& args)
+{
+  typename T::PrivateOutput output(*this);
+  for (size_t i = 0; i < args.size(); i += 4)
+    for (int j = 0; j < args[i]; j++)
+      {
+        int player = args[i + 1];
+        output.prepare_sending(S.at(args[i + 3] + j), player);
+      }
+  output.exchange();
+  for (size_t i = 0; i < args.size(); i += 4)
+    for (int j = 0; j < args[i]; j++)
+      C.at(args[i + 2] + j) = output.finalize(args[i + 1]);
+}
+
+template<class T>
+void SubProcessor<T>::send_personal(const vector<int>& args)
+{
+  octetStreams to_send(P), to_receive(P);
+  for (size_t i = 0; i < args.size(); i += 5)
+    if (args[i + 3] == P.my_num())
+        for (int j = 0; j < args[i]; j++)
+          C[args[i + 4] + j].pack(to_send[args[i + 1]]);
+  P.send_receive_all(to_send, to_receive);
+  for (size_t i = 0; i < args.size(); i += 5)
+    if (args[i + 1] == P.my_num())
+        for (int j = 0; j < args[i]; j++)
+          C[args[i + 2] + j].unpack(to_receive[args[i + 3]]);
+}
+
 template<class sint, class sgf2n>
 typename sint::clear Processor<sint, sgf2n>::get_inverse2(unsigned m)
 {
@@ -695,29 +838,68 @@ typename sint::clear Processor<sint, sgf2n>::get_inverse2(unsigned m)
 }
 
 template<class sint, class sgf2n>
-ostream& operator<<(ostream& s,const Processor<sint, sgf2n>& P)
+void Processor<sint, sgf2n>::fixinput(const Instruction& instruction)
 {
-  s << "Processor State" << endl;
-  s << "Char 2 Registers" << endl;
-  s << "Val\tClearReg\tSharedReg" << endl;
-  for (int i=0; i<P.reg_max2; i++)
-    { s << i << "\t";
-      P.read_C2(i).output(s,true);
-      s << "\t";
-      P.read_S2(i).output(s,true);
-      s << endl;
+  int n = instruction.get_n();
+  if (n == P.my_num() or n == -1)
+    {
+      typename sint::clear tmp;
+      bool use_double = false;
+      switch (instruction.get_r(2))
+      {
+      case 0:
+      case 1:
+        break;
+      case 2:
+        use_double = true;
+        break;
+      default:
+        throw runtime_error("unknown format for fixed-point input");
+      }
+
+      for (int i = 0; i < instruction.get_size(); i++)
+        {
+          if (binary_input.peek() == EOF)
+            throw IO_Error("not enough inputs in " + binary_input_filename);
+          double buf;
+          if (instruction.get_r(2) == 0)
+            {
+              int64_t x;
+              binary_input.read((char*) &x, sizeof(x));
+              tmp = x;
+            }
+          else
+            {
+              if (use_double)
+                binary_input.read((char*) &buf, sizeof(double));
+              else
+                {
+                  float x;
+                  binary_input.read((char*) &x, sizeof(float));
+                  buf = x;
+                }
+              tmp = bigint::tmp = round(buf * exp2(instruction.get_r(1)));
+            }
+          if (binary_input.fail())
+            throw IO_Error("failure reading from " + binary_input_filename);
+          write_Cp(instruction.get_r(0) + i, tmp);
+        }
     }
-  s << "Char p Registers" << endl;
-  s << "Val\tClearReg\tSharedReg" << endl;
-  for (int i=0; i<P.reg_maxp; i++)
-    { s << i << "\t";
-      P.read_Cp(i).output(s,true);
-      s << "\t";
-      P.read_Sp(i).output(s,true);
-      s << endl;
+}
+
+template<class sint, class sgf2n>
+long Processor<sint, sgf2n>::sync(long x) const
+{
+  if (not sint::symmetric)
+    {
+      // send number to dealer
+      if (P.my_num() == 0)
+        P.send_long(P.num_players() - 1, x);
+      if (not sint::real_shares(P))
+        return P.receive_long(0);
     }
 
-  return s;
+  return x;
 }
 
 #endif

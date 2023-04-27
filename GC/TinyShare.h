@@ -46,11 +46,6 @@ public:
         return "tiny share";
     }
 
-    static This new_reg()
-    {
-        return {};
-    }
-
     TinyShare()
     {
     }
@@ -73,13 +68,6 @@ public:
         auto& party = this->get_party();
         *this = super::constant(input, party.P->my_num(),
                 party.MC->get_alphai());
-    }
-
-    void random()
-    {
-        TinySecret<S> tmp;
-        this->get_party().DataF.get_one(DATA_BIT, tmp);
-        *this = tmp.get_reg(0);
     }
 };
 

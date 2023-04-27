@@ -5,10 +5,8 @@
 
 #include "Client.h"
 
-inline
-Client::Client(const vector<string>& hostnames, int port_base,
-        int my_client_id) :
-        ctx("C" + to_string(my_client_id))
+inline Client::Client(const vector<string>& hostnames, int port_base, int my_client_id)
+  : ctx("C" + to_string(my_client_id))
 {
     bigint::init_thread();
 
@@ -27,8 +25,7 @@ Client::Client(const vector<string>& hostnames, int port_base,
     }
 }
 
-inline
-Client::~Client()
+inline Client::~Client()
 {
     for (auto& socket : sockets)
     {
@@ -37,24 +34,28 @@ Client::~Client()
 }
 
 // Send the private inputs masked with a random value.
-// Receive shares of a preprocessed triple from each SPDZ engine, combine and check the triples are valid.
-// Add the private input value to triple[0] and send to each spdz engine.
-template<class T>
+// Receive shares of a preprocessed triple from each SPDZ engine, combine and check the triples are
+// valid. Add the private input value to triple[0] and send to each spdz engine.
+template <class T>
 void Client::send_private_inputs(const vector<T>& values)
 {
     int num_inputs = values.size();
     octetStream os;
-    vector< vector<T> > triples(num_inputs, vector<T>(3));
+    vector<vector<T> > triples(num_inputs, vector<T>(3));
     vector<T> triple_shares(3);
 
     // Receive num_inputs triples from SPDZ
     for (size_t j = 0; j < sockets.size(); j++)
     {
+#ifdef VERBOSE_COMM
+        cerr << "receiving from " << j << endl << flush;
+#endif
+
         os.reset_write_head();
         os.Receive(sockets[j]);
 
 #ifdef VERBOSE_COMM
-        cerr << "received " << os.get_length() << " from " << j << endl;
+        cerr << "received " << os.get_length() << " from " << j << endl << flush;
 #endif
 
         for (int j = 0; j < num_inputs; j++)
@@ -91,8 +92,8 @@ void Client::send_private_inputs(const vector<T>& values)
 
 // Receive shares of the result and sum together.
 // Also receive authenticating values.
-template<class T>
-vector<T> Client::receive_outputs(int n)
+template <class T, class U>
+vector<U> Client::receive_outputs(int n)
 {
     vector<T> triples(3 * n);
     octetStream os;
@@ -101,7 +102,7 @@ vector<T> Client::receive_outputs(int n)
         os.reset_write_head();
         os.Receive(socket);
 #ifdef VERBOSE_COMM
-        cout << "received " << os.get_length() << endl;
+        cout << "received " << os.get_length() << endl << flush;
 #endif
         for (int j = 0; j < 3 * n; j++)
         {
@@ -111,7 +112,7 @@ vector<T> Client::receive_outputs(int n)
         }
     }
 
-    vector<T> output_values;
+    vector<U> output_values;
     for (int i = 0; i < 3 * n; i += 3)
     {
         if (T(triples[i] * triples[i + 1]) != triples[i + 2])

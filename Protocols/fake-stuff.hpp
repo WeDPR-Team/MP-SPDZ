@@ -19,7 +19,9 @@ template<class T> class MaliciousShamirShare;
 template<class T, int L> class FixedVec;
 template<class T, class V> class Share_;
 template<class T> class SpdzWiseShare;
+template<class T, int L> class MamaMac;
 template<class> class MaliciousRep3Share;
+template<class> class DealerShare;
 
 namespace GC
 {
@@ -31,7 +33,6 @@ template<class T> class MaliciousCcdSecret;
 template<class T, class U, class V, class W>
 void make_share(Share_<T, W>* Sa,const U& a,int N,const V& key,PRNG& G)
 {
-  insecure("share generation", false);
   T x;
   W mac, y;
   mac = a * key;
@@ -52,7 +53,6 @@ void make_share(Share_<T, W>* Sa,const U& a,int N,const V& key,PRNG& G)
 template<class T, class U, class V>
 void make_share(SpdzWiseShare<MaliciousRep3Share<T>>* Sa,const U& a,int N,const V& key,PRNG& G)
 {
-  insecure("share generation", false);
   assert (key[0] == key[1]);
   auto mac = a * key[0];
   FixedVec<typename V::value_type, 3> shares, macs;
@@ -115,7 +115,6 @@ void make_share(GC::TinierSecret<T>* Sa, const U& a, int N, const V& key, PRNG& 
 template<class T, class U>
 void make_share(SemiShare<T>* Sa,const T& a,int N,const U&,PRNG& G)
 {
-  insecure("share generation", false);
   T x, S = a;
   for (int i=0; i<N-1; i++)
     {
@@ -126,12 +125,31 @@ void make_share(SemiShare<T>* Sa,const T& a,int N,const U&,PRNG& G)
   Sa[N-1]=S;
 }
 
+template<class T, class U, class V, int L>
+void make_share(MamaMac<V, L>* Sa,const T& a,int N,const U&,PRNG& G)
+{
+  T x, S = a;
+  for (int i=0; i<N-1; i++)
+    {
+      x.randomize(G);
+      Sa[i] = x;
+      S -= x;
+    }
+  Sa[N-1]=S;
+}
+
+template<class T, class U>
+void make_share(DealerShare<T>* Sa, const T& a, int N, const U&, PRNG& G)
+{
+  make_share((SemiShare<T>*) Sa, a, N - 1, U(), G);
+}
+
 template<class T, class U, class V>
 void make_share(FixedVec<T, 2>* Sa, const V& a, int N, const U& key, PRNG& G);
 
 template<class T, class U>
 inline void make_share(vector<T>& Sa,
-    const typename T::clear& a, int N, const U& key,
+    const typename T::open_type& a, int N, const U& key,
     PRNG& G)
 {
   Sa.resize(N);
@@ -143,7 +161,6 @@ void make_share(FixedVec<T, 2>* Sa, const V& a, int N, const U& key, PRNG& G)
 {
   (void) key;
   assert(N == 3);
-  insecure("share generation", false);
   FixedVec<T, 3> add_shares;
   // hack
   add_shares.randomize_to_sum(a, G);
@@ -161,7 +178,6 @@ void make_share(FixedVec<T, 3>* Sa, const V& a, int N, const U& key, PRNG& G)
 {
   (void) key;
   assert(N == 4);
-  insecure("share generation", false);
   FixedVec<T, 4> add_shares;
   add_shares.randomize_to_sum(a, G);
   for (int i=0; i<N; i++)
@@ -188,7 +204,6 @@ template<class T, class V>
 void make_share(ShamirShare<T>* Sa, const V& a, int N,
     const typename ShamirShare<T>::mac_type&, PRNG& G)
 {
-  insecure("share generation", false);
   auto& vandermonde = VanderStore<T>::vandermonde;
   if (vandermonde.empty())
       vandermonde = ShamirInput<ShamirShare<T>>::get_vandermonde(N / 2, N);
@@ -234,7 +249,7 @@ void check_share(vector<Share<T> >& Sa,
 
 template<class T>
 void check_share(vector<T>& Sa, typename T::clear& value,
-    typename T::value_type& mac, int N, const typename T::value_type& key)
+    typename T::mac_type& mac, int N, const typename T::mac_key_type& key)
 {
   assert(N == 3);
   value = 0;
@@ -266,13 +281,20 @@ inline string mac_filename(string directory, int playerno)
       + to_string(playerno);
 }
 
+template <>
+inline void write_mac_key(const string&, int, int, GC::NoValue)
+{
+}
+
 template <class U>
 void write_mac_key(const string& directory, int i, int nplayers, U key)
 {
   ofstream outf;
   stringstream filename;
   filename << mac_filename<U>(directory, i);
+#ifdef VERBOSE
   cout << "Writing to " << filename.str().c_str() << endl;
+#endif
   outf.open(filename.str().c_str());
   outf << nplayers << endl;
   key.output(outf,true);
@@ -290,6 +312,11 @@ template <class T>
 void read_mac_key(const string& directory, const Names& N, T& key)
 {
   read_mac_key(directory, N.my_num(), N.num_players(), key);
+}
+
+template <>
+inline void read_mac_key(const string&, int, int, GC::NoValue&)
+{
 }
 
 template <class U>
@@ -317,7 +344,14 @@ void read_mac_key(const string& directory, int player_num, int nplayers, U& key)
       throw mac_key_error(filename);
     }
 
-  key.input(inpf,true);
+  try
+  {
+      key.input(inpf,true);
+  }
+  catch(exception&)
+  {
+      throw mac_key_error(filename);
+  }
 
   if (inpf.fail())
       throw mac_key_error(filename);
@@ -326,24 +360,35 @@ void read_mac_key(const string& directory, int player_num, int nplayers, U& key)
 }
 
 template<class T>
-inline typename T::mac_key_type read_generate_write_mac_key(const Player& P,
+typename T::mac_key_type read_generate_write_mac_key(Player& P,
         string directory)
 {
   if (directory == "")
     directory = get_prep_sub_dir<T>(P.num_players());
-  typename T::mac_key_type res;
+  typename T::mac_key_type res, tmp;
 
   try
   {
-      read_mac_key(directory, P.my_num(), P.num_players(), res);
+      read_mac_key(directory, P.my_num(), P.num_players(), tmp);
   }
   catch (mac_key_error&)
   {
-      T::read_or_generate_mac_key(directory, P, res);
-      write_mac_key(directory, P.my_num(), P.num_players(), res);
   }
 
+  T::read_or_generate_mac_key(directory, P, res);
+
+  // only write if changed
+  if (tmp != res)
+      write_mac_key(directory, P.my_num(), P.num_players(), res);
+
   return res;
+}
+
+template<>
+inline GC::NoValue read_generate_write_mac_key<GC::NoShare>(Player&,
+        string)
+{
+  return {};
 }
 
 template <class U>
@@ -361,6 +406,11 @@ void read_global_mac_key(const string& directory, int nparties, U& key)
 
   cout << "--------------\n";
   cout << "Final Keys : " << key << endl;
+}
+
+template <>
+inline void read_global_mac_key(const string&, int, GC::NoValue&)
+{
 }
 
 template <class T>
@@ -485,7 +535,6 @@ inline void check_files(ofstream* outf, int N)
 
 /* N      = Number players
  * ntrip  = Number triples needed
- * str    = "2" or "p"
  */
 template<class T>
 void make_mult_triples(const typename T::mac_type& key, int N, int ntrip,
@@ -496,44 +545,25 @@ void make_mult_triples(const typename T::mac_type& key, int N, int ntrip,
   PRNG G;
   G.ReSeed();
 
-  ofstream* outf=new ofstream[N];
+  Files<T> files(N, key, prep_data_prefix, DATA_TRIPLE, thread_num);
   typename T::clear a,b,c;
-  vector<T> Sa(N),Sb(N),Sc(N);
   /* Generate Triples */
-  for (int i=0; i<N; i++)
-    {
-      string filename = PrepBase::get_filename(
-          get_prep_sub_dir<T>(prep_data_prefix, N), DATA_TRIPLE,
-          T::type_short(), i, thread_num);
-      cout << "Opening " << filename << endl;
-      outf[i].open(filename,ios::out | ios::binary);
-      if (outf[i].fail()) { throw file_error(filename); }
-    }
   for (int i=0; i<ntrip; i++)
     {
       if (!zero)
         a.randomize(G);
-      make_share(Sa,a,N,key,G);
       if (!zero)
         b.randomize(G);
-      make_share(Sb,b,N,key,G);
-      c = a * b;
-      make_share(Sc,c,N,key,G);
-      for (int j=0; j<N; j++)
-        { Sa[j].output(outf[j],false);
-          Sb[j].output(outf[j],false);
-          Sc[j].output(outf[j],false);
-        }
+      auto c = typename T::open_type(a) * b;
+      files.output_shares(a);
+      files.output_shares(b);
+      files.output_shares(c);
     }
-  check_files(outf, N);
-  for (int i=0; i<N; i++)
-    { outf[i].close(); }
-  delete[] outf;
+  check_files(files.outf, N);
 }
 
 /* N      = Number players
  * ntrip  = Number inverses needed
- * str    = "2" or "p"
  */
 template<class T>
 void make_inverse(const typename T::mac_type& key, int N, int ntrip, bool zero,
@@ -542,17 +572,8 @@ void make_inverse(const typename T::mac_type& key, int N, int ntrip, bool zero,
   PRNG G;
   G.ReSeed();
 
-  ofstream* outf=new ofstream[N];
+  Files<T> files(N, key, prep_data_prefix, DATA_INVERSE);
   typename T::clear a,b;
-  vector<T> Sa(N),Sb(N);
-  /* Generate Triples */
-  for (int i=0; i<N; i++)
-    { stringstream filename;
-      filename << get_prep_sub_dir<T>(prep_data_prefix, N) << "Inverses-" << T::type_short() << "-P" << i;
-      cout << "Opening " << filename.str() << endl;
-      outf[i].open(filename.str().c_str(),ios::out | ios::binary);
-      if (outf[i].fail()) { throw file_error(filename.str().c_str()); }
-    }
   for (int i=0; i<ntrip; i++)
     {
       if (zero)
@@ -562,17 +583,31 @@ void make_inverse(const typename T::mac_type& key, int N, int ntrip, bool zero,
         do
           a.randomize(G);
         while (a.is_zero());
-      make_share(Sa,a,N,key,G);
-      make_share(Sb,a.invert(),N,key,G);
-      for (int j=0; j<N; j++)
-        { Sa[j].output(outf[j],false);
-          Sb[j].output(outf[j],false);
-        }
+      files.output_shares(a);
+      files.output_shares(a.invert());
     }
-  check_files(outf, N);
-  for (int i=0; i<N; i++)
-    { outf[i].close(); }
-  delete[] outf;
+  check_files(files.outf, N);
+}
+
+template<class T>
+void plain_edabits(vector<typename T::clear>& as,
+    vector<typename T::bit_type::part_type::clear>& bs, int length, PRNG& G,
+    bool zero = false)
+{
+  int max_size = edabitvec<T>::MAX_SIZE;
+  as.resize(max_size);
+  bs.clear();
+  bs.resize(length);
+  Z2<T::clear::MAX_EDABITS> value;
+  for (int j = 0; j < max_size; j++)
+    {
+      if (not zero)
+        value.randomize_part(G, length);
+      as[j] = value;
+      for (int k = 0; k < length; k++)
+        bs[k] ^= BitVec(value.get_bit(k)) << j;
+    }
+
 }
 
 #endif

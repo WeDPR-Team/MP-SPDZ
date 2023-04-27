@@ -20,6 +20,7 @@
 #include "Tools/CheckVector.h"
 #include "GC/Processor.h"
 #include "GC/ShareThread.h"
+#include "Protocols/SecureShuffle.h"
 
 class Program;
 
@@ -31,7 +32,14 @@ class SubProcessor
 
   DataPositions bit_usage;
 
-  void resize(int size)       { C.resize(size); S.resize(size); }
+  typename T::Protocol::Shuffler shuffler;
+
+  void resize(size_t size)       { C.resize(size); S.resize(size); }
+
+  void matmulsm_prep(int ii, int j, const CheckVector<T>& source,
+      const vector<int>& dim, size_t a, size_t b);
+  void matmulsm_finalize(int i, int j, const vector<int>& dim,
+      typename vector<T>::iterator C);
 
   template<class sint, class sgf2n> friend class Processor;
   template<class U> friend class SPDZ;
@@ -58,19 +66,29 @@ public:
       ArithmeticProcessor* Proc = 0);
   ~SubProcessor();
 
+  void check();
+
   // Access to PO (via calls to POpen start/stop)
-  void POpen(const vector<int>& reg,const Player& P,int size);
+  void POpen(const Instruction& inst);
 
   void muls(const vector<int>& reg, int size);
   void mulrs(const vector<int>& reg);
   void dotprods(const vector<int>& reg, int size);
-  void matmuls(const vector<T>& source, const Instruction& instruction, int a,
-      int b);
-  void matmulsm(const CheckVector<T>& source, const Instruction& instruction, int a,
-      int b);
+  void matmuls(const vector<T>& source, const Instruction& instruction, size_t a,
+      size_t b);
+  void matmulsm(const CheckVector<T>& source, const Instruction& instruction, size_t a,
+      size_t b);
   void conv2ds(const Instruction& instruction);
 
+  void secure_shuffle(const Instruction& instruction);
+  size_t generate_secure_shuffle(const Instruction& instruction);
+  void apply_shuffle(const Instruction& instruction, int handle);
+  void delete_shuffle(int handle);
+  void inverse_permutation(const Instruction& instruction);
+
   void input_personal(const vector<int>& args);
+  void send_personal(const vector<int>& args);
+  void private_output(const vector<int>& args);
 
   CheckVector<T>& get_S()
   {
@@ -82,21 +100,26 @@ public:
     return C;
   }
 
-  T& get_S_ref(int i)
+  T& get_S_ref(size_t i)
   {
     return S[i];
   }
 
-  typename T::clear& get_C_ref(int i)
+  typename T::clear& get_C_ref(size_t i)
   {
     return C[i];
   }
+
+    void inverse_permutation(const Instruction &instruction, int handle);
 };
 
 class ArithmeticProcessor : public ProcessorBase
 {
 protected:
   CheckVector<long> Ci;
+
+  ofstream public_output;
+  ofstream binary_output;
 
 public:
   int thread_num;
@@ -106,12 +129,11 @@ public:
 
   string private_input_filename;
   string public_input_filename;
+  string binary_input_filename;
 
   ifstream private_input;
   ifstream public_input;
-  ofstream public_output;
-  ofstream private_output;
-  ofstream binary_output;
+  ifstream binary_input;
 
   int sent, rounds;
 
@@ -126,6 +148,10 @@ public:
   ArithmeticProcessor(OnlineOptions opts, int thread_num) : thread_num(thread_num),
           sent(0), rounds(0), opts(opts) {}
 
+  virtual ~ArithmeticProcessor()
+  {
+  }
+
   bool use_stdin()
   {
     return thread_num == 0 and opts.interactive;
@@ -136,14 +162,23 @@ public:
     return thread_num;
   }
 
-  const long& read_Ci(int i) const
+  const long& read_Ci(size_t i) const
     { return Ci[i]; }
-  long& get_Ci_ref(int i)
+  long& get_Ci_ref(size_t i)
     { return Ci[i]; }
-  void write_Ci(int i,const long& x)
+  void write_Ci(size_t i, const long& x)
     { Ci[i]=x; }
   CheckVector<long>& get_Ci()
     { return Ci; }
+
+  virtual ofstream& get_public_output()
+  {
+    throw not_implemented();
+  }
+  virtual ofstream& get_binary_output()
+  {
+    throw not_implemented();
+  }
 
   void shuffle(const Instruction& instruction);
   void bitdecint(const Instruction& instruction);
@@ -172,14 +207,14 @@ class Processor : public ArithmeticProcessor
   SubProcessor<sgf2n> Proc2;
   SubProcessor<sint>  Procp;
 
-  typename sgf2n::PrivateOutput privateOutput2;
-  typename sint::PrivateOutput privateOutputp;
-
   unsigned int PC;
   TempVars<sint, sgf2n> temp;
 
-  ExternalClients external_clients;
+  ExternalClients& external_clients;
   Binary_File_IO binary_file_io;
+
+  CommStats client_stats;
+  Timer& client_timer;
 
   void reset(const Program& program,int arg); // Reset the state of the processor
   string get_filename(const char* basename, bool use_number);
@@ -190,30 +225,30 @@ class Processor : public ArithmeticProcessor
           const Program& program);
   ~Processor();
 
-    const typename sgf2n::clear& read_C2(int i) const
+    const typename sgf2n::clear& read_C2(size_t i) const
       { return Proc2.C[i]; }
-    const sgf2n& read_S2(int i) const
+    const sgf2n& read_S2(size_t i) const
       { return Proc2.S[i]; }
-    typename sgf2n::clear& get_C2_ref(int i)
+    typename sgf2n::clear& get_C2_ref(size_t i)
       { return Proc2.C[i]; }
-    sgf2n& get_S2_ref(int i)
+    sgf2n& get_S2_ref(size_t i)
       { return Proc2.S[i]; }
-    void write_C2(int i,const typename sgf2n::clear& x)
+    void write_C2(size_t i,const typename sgf2n::clear& x)
       { Proc2.C[i]=x; }
-    void write_S2(int i,const sgf2n& x)
+    void write_S2(size_t i,const sgf2n& x)
       { Proc2.S[i]=x; }
   
-    const typename sint::clear& read_Cp(int i) const
+    const typename sint::clear& read_Cp(size_t i) const
       { return Procp.C[i]; }
-    const sint & read_Sp(int i) const
+    const sint & read_Sp(size_t i) const
       { return Procp.S[i]; }
-    typename sint::clear& get_Cp_ref(int i)
+    typename sint::clear& get_Cp_ref(size_t i)
       { return Procp.C[i]; }
-    sint & get_Sp_ref(int i)
+    sint & get_Sp_ref(size_t i)
       { return Procp.S[i]; }
-    void write_Cp(int i,const typename sint::clear& x)
+    void write_Cp(size_t i,const typename sint::clear& x)
       { Procp.C[i]=x; }
-    void write_Sp(int i,const sint & x)
+    void write_Sp(size_t i,const sint & x)
       { Procp.S[i]=x; }
 
   void check();
@@ -229,8 +264,8 @@ class Processor : public ArithmeticProcessor
   // Access to external client sockets for reading clear/shared data
   void read_socket_ints(int client_id, const vector<int>& registers, int size);
 
-  void write_socket(const RegType reg_type, int socket_id, int message_type,
-      const vector<int>& registers, int size);
+  void write_socket(const RegType reg_type, bool send_macs, int socket_id,
+      int message_type, const vector<int>& registers, int size);
 
   void read_socket_vector(int client_id, const vector<int>& registers,
       int size);
@@ -239,13 +274,17 @@ class Processor : public ArithmeticProcessor
 
   // Read and write secret numeric data to file (name hardcoded at present)
   void read_shares_from_file(int start_file_pos, int end_file_pos_register, const vector<int>& data_registers);
-  void write_shares_to_file(const vector<int>& data_registers);
+  void write_shares_to_file(long start_pos, const vector<int>& data_registers);
   
   cint get_inverse2(unsigned m);
 
-  // Print the processor state
-  template<class T, class U>
-  friend ostream& operator<<(ostream& s,const Processor<T, U>& P);
+  void fixinput(const Instruction& instruction);
+
+  // synchronize in asymmetric protocols
+  long sync(long x) const;
+
+  ofstream& get_public_output();
+  ofstream& get_binary_output();
 
   private:
 

@@ -29,7 +29,8 @@ YaoEvaluator::YaoEvaluator(int thread_num, YaoEvalMaster& master) :
 
 void YaoEvaluator::pre_run()
 {
-	processor.out.activate(true);
+	if (master.opts.cmd_private_output_file.empty())
+		processor.out.activate(not continuous());
 	if (not continuous())
 		receive_to_store(*P);
 }
@@ -76,13 +77,17 @@ void YaoEvaluator::run_from_store(GC::Program& program)
 
 bool YaoEvaluator::receive(Player& P)
 {
+#ifdef DEBUG_YAO
+	printf("waiting to receive at %d in thread %d\n", processor.PC, thread_num);
+#endif
 	if (P.receive_long(0) == YaoCommon::DONE)
 		return false;
 	P.receive_player(0, gates);
 	P.receive_player(0, output_masks);
 #ifdef DEBUG_YAO
-	cout << "received " << gates.size() << " gates and " << output_masks.size()
-	        << " output masks at " << processor.PC << endl;
+	cout << "received " << gates.size() << " bytes for gates and "
+			<< output_masks.size() << " output masks at " << processor.PC
+			<< " in thread " << thread_num << endl;
 #endif
 	return true;
 }

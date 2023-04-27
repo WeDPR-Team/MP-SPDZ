@@ -154,22 +154,30 @@ class gf2n_long : public gf2n_<int128>
   gf2n_long(int g) : gf2n_long(int128(unsigned(g))) {}
   template<class T>
   gf2n_long(IntBase<T> g) : super(g.get()) {}
-
-  friend ostream& operator<<(ostream& s,const gf2n_long& x)
-    { s << hex << x.get() << dec;
-      return s;
-    }
-  friend istream& operator>>(istream& s,gf2n_long& x)
-    { bigint tmp;
-      s >> hex >> tmp >> dec;
-      x = 0;
-      auto size = tmp.get_mpz_t()->_mp_size;
-      assert(size >= 0);
-      assert(size <= 2);
-      mpn_copyi((mp_limb_t*)x.get_ptr(), tmp.get_mpz_t()->_mp_d, size);
-      return s;
-    }
 };
+
+#if defined(__aarch64__) && defined(__clang__)
+inline __m128i my_slli(int128 x, int i)
+{
+  if (i < 64)
+    return int128(x.get_upper() << i, x.get_lower() << i).a;
+  else
+    return int128().a;
+}
+
+inline __m128i my_srli(int128 x, int i)
+{
+  if (i < 64)
+    return int128(x.get_upper() >> i, x.get_lower() >> i).a;
+  else
+    return int128().a;
+}
+
+#undef _mm_slli_epi64
+#undef _mm_srli_epi64
+#define _mm_slli_epi64 my_slli
+#define _mm_srli_epi64 my_srli
+#endif
 
 inline int128 int128::operator<<(const int& other) const
 {
