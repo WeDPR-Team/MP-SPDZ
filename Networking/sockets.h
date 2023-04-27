@@ -82,7 +82,6 @@ inline void write_ppc_debug_file(int socket, octet* msg, size_t len, bool debug_
     }
 }
 
-template<>
 inline void send(int socket,octet *msg,size_t len)
 {
     bool debug_flag = get_debug_flag();

@@ -23,6 +23,8 @@ void Names::init(int player, int pnb, int my_port, const char* servername, bool 
 #ifndef PPC_COMMUNICATION
     setup_server();
 #endif
+    if (setup_socket)
+        setup_server();
 }
 
 Names::Names(int player, int nplayers, const string& servername, int pnb, int my_port) : Names()
@@ -112,14 +114,11 @@ void Names::setup_names(const char* servername, int my_port)
         my_port = default_port(player_no);
 
     int socket_num;
-<<<<<<< HEAD
 #ifdef PPC_COMMUNICATION
     int pn = portnum_base;
 #else
     int pn = portnum_base - 1;
 #endif
-    ======= int pn = portnum_base;
->>>>>>> up/master
     set_up_client_socket(socket_num, servername, pn);
     octetStream("P" + to_string(player_no)).Send(socket_num);
 #ifdef DEBUG_NETWORKING
@@ -704,43 +703,7 @@ RealTwoPartyPlayer::RealTwoPartyPlayer(const Names& Nms, int other_player, int i
 
 RealTwoPartyPlayer::~RealTwoPartyPlayer()
 {
-    close_client_socket(socket);
-}
-
-void RealTwoPartyPlayer::setup_sockets(int other_player, const Names& nms, int portNum, string id)
-{
-    id += "2";
-    const char* hostname = nms.names[other_player].c_str();
-    ServerSocket* server = nms.server;
-    if (is_server)
-    {
-#ifdef DEBUG_NETWORKING
-        fprintf(stderr, "Setting up server with id %s\n", id.c_str());
-#endif
-        socket = server->get_connection_socket(id);
-    }
-    else
-    {
-#ifdef DEBUG_NETWORKING
-        fprintf(stderr, "Setting up client to %s:%d with id %s\n", hostname, portNum, id.c_str());
-#endif
-        int ppc_connection_waiting_millisecond_flags = get_connection_waiting_millisecond_flag();
-        usleep(ppc_connection_waiting_millisecond_flags * 1000);
-        set_up_client_socket(socket, hostname, portNum);
-        octetStream(id).Send(socket);
-    }
-}
-
-int RealTwoPartyPlayer::other_player_num() const
-{
-    return other_player;
-}
-
-void RealTwoPartyPlayer::send(octetStream& o) const
-{
-    TimeScope ts(comm_stats["Sending one-to-one"].add(o));
-    o.Send(socket);
-    sent += o.get_length();
+    delete P;
 }
 
 void VirtualTwoPartyPlayer::send(octetStream& o) const

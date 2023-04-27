@@ -188,9 +188,9 @@ Server* Server::start_networking(Names& N, int my_num, int nplayers,
         N.set_server(server->get_socket());
       delete server;
     }
-#endif
   else
       N.init(my_num, portnum, my_port, hostname.c_str());
+#endif
   return 0;
 }
 
