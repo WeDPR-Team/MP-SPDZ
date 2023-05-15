@@ -18,6 +18,7 @@
 #include "Math/gf2nlong.h"
 
 #include "Processor/DummyProtocol.h"
+#include "Processor/Instruction.h"
 
 #include "Tools/FixedVector.h"
 
@@ -84,7 +85,6 @@ public:
     template <class U>
     static void store_clear_in_dynamic(U& mem, const vector<ClearWriteAccess>& accesses)
     { T::store_clear_in_dynamic(mem, accesses); }
-    static void output(T& reg);
 
     template<class U, class V>
     static void load(vector< ReadAccess<V> >& accesses, const U& mem);
@@ -97,6 +97,9 @@ public:
     template<class U>
     static void ands(Processor<U>& processor, const vector<int>& args)
     { T::ands(processor, args); }
+    template<class U>
+    static void andrsvec(Processor<U>& processor, const vector<int>& args)
+    { T::andrsvec(processor, args); }
     template<class U>
     static void xors(Processor<U>& processor, const vector<int>& args)
     { T::xors(processor, args); }
@@ -113,7 +116,7 @@ public:
     { T::inputbvec(processor, input_proc, args); }
     template<class U>
     static void reveal_inst(Processor<U>& processor, const vector<int>& args)
-    { processor.reveal(args); }
+    { T::reveal_inst(processor, args); }
 
     template<class U>
     static void trans(Processor<U>& processor, int n_inputs, const vector<int>& args);
@@ -122,6 +125,15 @@ public:
     static void convcbit(Integer& dest, const Clear& source,
             Processor<U>& proc)
     { T::convcbit(dest, source, proc); }
+
+    template<class U>
+    static void convcbit2s(Processor<U>& processor, const BaseInstruction& instruction)
+    { T::convcbit2s(processor, instruction); }
+    template<class U>
+    static void andm(Processor<U>& processor, const BaseInstruction& instruction)
+    { T::andm(processor, instruction); }
+
+    static void run_tapes(const vector<int>& args) { T::run_tapes(args); }
 
     Secret();
     Secret(const Integer& x) { *this = x; }
@@ -148,7 +160,6 @@ public:
     }
     void invert(int n, const Secret<T>& x);
     void and_(int n, const Secret<T>& x, const Secret<T>& y, bool repeat);
-    void andrs(int n, const Secret<T>& x, const Secret<T>& y) { and_(n, x, y, true); }
 
     template <class U>
     void reveal(size_t n_bits, U& x);

@@ -7,6 +7,7 @@
 #include "OnlineOptions.h"
 #include "Math/Setup.h"
 #include "PpcConstant.h"
+#include "Tools/Bundle.h"
 
 #include <iostream>
 #include <sodium.h>
@@ -14,6 +15,7 @@ using namespace std;
 
 BaseMachine* BaseMachine::singleton = 0;
 thread_local int BaseMachine::thread_num;
+thread_local OnDemandOTTripleSetup BaseMachine::ot_setup;
 
 void print_usage(ostream& o, const char* name, size_t capacity)
 {
@@ -60,10 +62,20 @@ void BaseMachine::load_schedule(const string& progname, bool load_bytecode)
   cerr << "Number of program sequences I need to load = " << nprogs << endl;
 #endif
 
+  bc_filenames.clear();
+
   // Load in the programs
   string threadname;
   for (int i=0; i<nprogs; i++)
     { inpf >> threadname;
+      size_t split = threadname.find(":");
+      long expected = -1;
+      if (split != string::npos)
+        {
+          expected = atoi(threadname.substr(split + 1).c_str());
+          threadname = threadname.substr(0, split);
+        }
+
       string filename = "Programs/Bytecode/" + threadname + ".bc";
       bc_filenames.push_back(filename);
       if (load_bytecode)
@@ -71,8 +83,11 @@ void BaseMachine::load_schedule(const string& progname, bool load_bytecode)
 #ifdef DEBUG_FILES
           cerr << "Loading program " << i << " from " << filename << endl;
 #endif
-          load_program(threadname, filename);
+          long size = load_program(threadname, filename);
+          if (expected >= 0 and expected != size)
+            throw runtime_error("broken bytecode file");
         }
+
     }
 
   for (auto i : {1, 0, 0})
@@ -96,7 +111,8 @@ void BaseMachine::print_compiler()
     cerr << "Compiler: " << compiler << endl;
 }
 
-void BaseMachine::load_program(const string& threadname, const string& filename)
+size_t BaseMachine::load_program(const string& threadname,
+    const string& filename)
 {
   (void)threadname;
   (void)filename;
@@ -111,22 +127,31 @@ void BaseMachine::time()
 void BaseMachine::start(int n)
 {
   cout << "Starting timer " << n << " at " << timer[n].elapsed()
+    << " (" << timer[n].mb_sent() << " MB)"
     << " after " << timer[n].idle() << endl;
-  timer[n].start();
+  timer[n].start(total_comm());
 }
 
 void BaseMachine::stop(int n)
 {
-  timer[n].stop();
-  cout << "Stopped timer " << n << " at " << timer[n].elapsed() << endl;
+  timer[n].stop(total_comm());
+  cout << "Stopped timer " << n << " at " << timer[n].elapsed() << " ("
+      << timer[n].mb_sent() << " MB)" << endl;
 }
 
 void BaseMachine::print_timers()
 {
+  cerr << "The following benchmarks are ";
+  if (OnlineOptions::singleton.live_prep)
+    cerr << "in";
+  else
+    cerr << "ex";
+  cerr << "cluding preprocessing (offline phase)." << endl;
   cerr << "Time = " << timer[0].elapsed() << " seconds " << endl;
   timer.erase(0);
-  for (map<int,Timer>::iterator it = timer.begin(); it != timer.end(); it++)
-    cerr << "Time" << it->first << " = " << it->second.elapsed() << " seconds " << endl;
+  for (auto it = timer.begin(); it != timer.end(); it++)
+    cerr << "Time" << it->first << " = " << it->second.elapsed() << " seconds ("
+        << it->second.mb_sent() << " MB)" << endl;
 }
 
 string BaseMachine::memory_filename(const string &type_short, int my_number) {
@@ -140,6 +165,12 @@ string BaseMachine::memory_filename(const string &type_short, int my_number) {
 
 string BaseMachine::get_domain(string progname)
 {
+  if (singleton)
+  {
+    assert(s().progname == progname);
+    return s().domain;
+  }
+
   assert(not singleton);
   BaseMachine machine;
   singleton = 0;
@@ -174,4 +205,30 @@ bigint BaseMachine::prime_from_schedule(string progname)
     return bigint(domain.substr(2));
   else
     return 0;
+}
+
+NamedCommStats BaseMachine::total_comm()
+{
+  NamedCommStats res;
+  for (auto& queue : queues)
+    res += queue->get_comm_stats();
+  return res;
+}
+
+void BaseMachine::set_thread_comm(const NamedCommStats& stats)
+{
+  auto queue = queues.at(BaseMachine::thread_num);
+  assert(queue);
+  queue->set_comm_stats(stats);
+}
+
+void BaseMachine::print_global_comm(Player& P, const NamedCommStats& stats)
+{
+  Bundle<octetStream> bundle(P);
+  bundle.mine.store(stats.sent);
+  P.Broadcast_Receive_no_stats(bundle);
+  size_t global = 0;
+  for (auto& os : bundle)
+    global += os.get_int(8);
+  cerr << "Global data sent = " << global / 1e6 << " MB (all parties)" << endl;
 }

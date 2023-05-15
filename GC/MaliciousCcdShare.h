@@ -44,14 +44,9 @@ public:
         return "Malicious CCD";
     }
 
-    static MAC_Check* new_mc(T)
+    static MAC_Check* new_mc(typename super::mac_key_type)
     {
         return new MAC_Check;
-    }
-
-    static This new_reg()
-    {
-        return {};
     }
 
     MaliciousCcdShare()
@@ -77,13 +72,6 @@ public:
     void public_input(bool input)
     {
         *this = input;
-    }
-
-    void random()
-    {
-        MaliciousCcdSecret<T> tmp;
-        ShareThread<MaliciousCcdSecret<T>>::s().DataF.get_one(DATA_BIT, tmp);
-        *this = tmp.get_reg(0);
     }
 
     This& operator^=(const This& other)

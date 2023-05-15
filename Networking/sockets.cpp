@@ -109,7 +109,9 @@ void set_up_client_socket(int& mysocket,const char* hostname,int Portnum)
        throw runtime_error(
            string() + "cannot connect from " + my_name + " to " + hostname + ":"
                + to_string(Portnum) + " after " + to_string(attempts)
-               + " attempts in one minute because " + strerror(connect_errno));
+               + " attempts in one minute because " + strerror(connect_errno) + ". "
+               "https://mp-spdz.readthedocs.io/en/latest/troubleshooting.html#"
+               "connection-failures has more information on port requirements.");
      }
 
    freeaddrinfo(ai);
@@ -123,7 +125,7 @@ void set_up_client_socket(int& mysocket,const char* hostname,int Portnum)
   int flags = fcntl(mysocket, F_GETFL, 0);
   fl = fcntl(mysocket, F_SETFL, O_NONBLOCK |  flags);
   if (fl < 0)
-    error("set non-blocking");
+    error("set non-blocking on client");
 #endif
 }
 
