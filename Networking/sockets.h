@@ -36,7 +36,19 @@ void send(T& socket, size_t a, size_t len);
 template<class T>
 void receive(T& socket, size_t& a, size_t len);
 
+inline std::string BinaryToHexString(
+        unsigned char* msg,
+        size_t len
+        )
+    {
+        std::stringstream ss;
+        for(int i=0; i<(int)len; ++i)
+            ss << std::hex << (int)msg[i];
+        std::string mystr = ss.str();
 
+        return mystr;
+    }
+    
 inline size_t send_non_blocking(int socket, octet* msg, size_t len)
 {
   int j = send(socket,msg,len,MSG_DONTWAIT);
