@@ -1,3 +1,5 @@
+.. _nonlinear:
+
 Non-linear Computation
 ----------------------
 
@@ -7,15 +9,15 @@ domains (modulus other than two) only comes in three flavors
 throughout MP-SPDZ:
 
 Unknown prime modulus
-    This approach goes back to `Catrina and Saxena
-    <http://www.ifca.ai/pub/fc10/31_47.pdf>`_. It crucially relies on
+    This approach goes back to `Catrina and de Hoogh
+    <https://www.researchgate.net/profile/Sebastiaan-Hoogh/publication/225092133_Improved_Primitives_for_Secure_Multiparty_Integer_Computation/links/0c960533585ad99868000000/Improved-Primitives-for-Secure-Multiparty-Integer-Computation.pdf>`_. It crucially relies on
     the use of secret random bits in the arithmetic domain. Enough
     such bits allow to mask a secret value so that it is secure to
     reveal the masked value. This can then be split in bits as it is
     public. The public bits and the secret mask bits are then used to
     compute a number of non-linear functions. The same idea has been
     used to implement `fixed-point
-    <https://doi.org/10.1007/978-3-642-15497-3_9>`_ and
+    <https://www.ifca.ai/pub/fc10/31_47.pdf>`_ and
     `floating-point <https://eprint.iacr.org/2012/405>`_ computation.
     We call this method "unknown prime modulus" because it only
     mandates a minimum modulus size for a given cleartext range, which
@@ -56,6 +58,10 @@ Power-of-two modulus
     mask-and-reveal approach above to the setting of computation
     modulo a power of two.
 
+See also `this slide deck
+<https://mkskeller.github.io/files/programming.pdf>`_ for an
+introduction to non-linear computation in arithmetic MPC.
+
 
 Mixed-Circuit Computation
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -65,8 +71,52 @@ computation for parts of the computation. MP-SPDZ implements protocols
 proposed for particular security models by a number of works: `Demmler et
 al. <https://encrypto.de/papers/DSZ15.pdf>`_, `Mohassel and Rindal
 <https://eprint.iacr.org/2018/403>`_, and `Dalskov et
-al. <https://eprint.iacr.org/2020/1330>`_. MP-SPDZ also implements
+al. <https://eprint.iacr.org/2020/1330>`_ MP-SPDZ also implements
 more general methods such as `daBits
 <https://eprint.iacr.org/2019/207>`_ and `edaBits
-<https://eprint.iacr.org/2020/338>`_
+<https://eprint.iacr.org/2020/338>`_.
 
+See also `this slide deck
+<https://mkskeller.github.io/files/mixed.pdf>`_ for an introduction to
+mixed-circuit computation.
+
+
+.. _protocol-pairs:
+
+Protocol Pairs
+==============
+
+The following table lists the matching arithmetic and binary protocols.
+
+.. list-table::
+   :header-rows: 1
+
+   *
+     - Arithmetic
+     - Binary
+   *
+     - MASCOT, SPDZ2k, LowGear, HighGear, CowGear, ChaiGear
+     - `Tinier <https://eprint.iacr.org/2015/901>`_ with improved
+       cut-and-choose analysis by `Furukawa et
+       al. <https://eprint.iacr.org/2016/944>`_
+   *
+     - Semi, Hemi, Temi, Soho, Semi2k
+     - SemiBin (Beaver triples modulo 2 using OT)
+   *
+     - `Malicious Shamir <https://eprint.iacr.org/2017/816>`_
+     - Malicious Shamir over :math:`GF(2^{40})` for secure sacrificing
+   *
+     - Malicious Rep3, Post-Sacrifice, SPDZ-wise replicated
+     - `Malicious Rep3 modulo 2 <https://eprint.iacr.org/2016/944>`_
+   *
+     - `Rep4 <https://eprint.iacr.org/2020/1330>`_
+     - Rep4 modulo 2
+   *
+     - `Shamir <https://eprint.iacr.org/2000/037>`_
+     - Shamir over :math:`GF(2^8)`
+   *
+     - `ATLAS <https://eprint.iacr.org/2021/833>`_
+     - ATLAS over :math:`GF(2^8)`
+   *
+     - `Rep3 <https://eprint.iacr.org/2016/768>`_
+     - Rep3

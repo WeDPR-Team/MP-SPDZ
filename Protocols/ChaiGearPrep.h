@@ -8,6 +8,9 @@
 
 #include "FHEOffline/SimpleGenerator.h"
 
+/**
+ * HighGear/ChaiGear preprocessing
+ */
 template<class T>
 class ChaiGearPrep : public MaliciousRingPrep<T>
 {
@@ -15,7 +18,7 @@ class ChaiGearPrep : public MaliciousRingPrep<T>
     typedef typename T::clear::FD FD;
     typedef SimpleGenerator<SummingEncCommit, FD> Generator;
 
-    static MultiplicativeMachine* machine;
+    static MultiplicativeMachineParams* machine;
     static Lock lock;
 
     Generator* generator;

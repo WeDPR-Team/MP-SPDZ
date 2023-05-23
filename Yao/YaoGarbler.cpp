@@ -30,6 +30,15 @@ YaoGarbler::YaoGarbler(int thread_num, YaoGarbleMaster& master) :
 	prng.ReSeed();
 	set_n_program_threads(master.machine.nthreads);
 	this->init(*this);
+	if (continuous())
+	    taint();
+	else
+	{
+		processor.out.activate(false);
+		if (not master.opts.cmd_private_output_file.empty())
+			cerr << "Garbling party cannot output with one-shot computation"
+					<< endl;
+	}
 }
 
 YaoGarbler::~YaoGarbler()
@@ -85,8 +94,9 @@ void YaoGarbler::post_run()
 void YaoGarbler::send(Player& P)
 {
 #ifdef DEBUG_YAO
-    cerr << "sending " << gates.size() << " gates and " <<
-            output_masks.size() << " output masks at " << processor.PC << endl;
+	cerr << "sending " << gates.size() << " bytes for gates and "
+			<< output_masks.size() << " output masks at " << processor.PC
+			<< " in thread " << thread_num << endl;
 #endif
 	P.send_long(1, YaoCommon::MORE);
 	size_t size = gates.size();
@@ -110,9 +120,4 @@ void YaoGarbler::process_receiver_inputs()
 
 		receiver_input_keys.pop_front();
 	}
-}
-
-NamedCommStats YaoGarbler::comm_stats()
-{
-	return super::comm_stats() + player.comm_stats;
 }

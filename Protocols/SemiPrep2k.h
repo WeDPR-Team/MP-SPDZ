@@ -9,6 +9,9 @@
 #include "SemiPrep.h"
 #include "RepRingOnlyEdabitPrep.h"
 
+/**
+ * Preprocessing for additive secret sharing modulo a power of two
+ */
 template<class T>
 class SemiPrep2k : public SemiPrep<T>, public RepRingOnlyEdabitPrep<T>
 {
@@ -46,6 +49,12 @@ public:
 
     void get_dabit_no_count(T& a, typename T::bit_type& b)
     {
+        if (this->bits_from_dabits())
+        {
+            SemiPrep<T>::get_dabit_no_count(a, b);
+            return;
+        }
+
         this->get_one_no_count(DATA_BIT, a);
         b = a & 1;
     }

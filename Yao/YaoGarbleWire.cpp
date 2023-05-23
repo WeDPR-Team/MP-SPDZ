@@ -8,11 +8,13 @@
 #include "YaoGarbler.h"
 #include "YaoGarbleInput.h"
 #include "GC/ArgTuples.h"
+#include "Tools/pprint.h"
 
 #include "GC/Processor.hpp"
 #include "GC/Secret.hpp"
 #include "GC/Thread.hpp"
 #include "GC/ShareSecret.hpp"
+#include "GC/ThreadMaster.hpp"
 #include "YaoCommon.hpp"
 
 void YaoGarbleWire::random()
@@ -169,7 +171,7 @@ void YaoGarbleWire::inputbvec(GC::Processor<GC::Secret<YaoGarbleWire>>& processo
 {
     auto& garbler = YaoGarbler::s();
     YaoGarbleInput input;
-    processor.inputbvec(input, input_processor, args, garbler.P->my_num());
+    processor.inputbvec(input, input_processor, args, *garbler.P);
 }
 
 inline void YaoGarbler::store_gate(const YaoGate& gate)
@@ -197,8 +199,58 @@ char YaoGarbleWire::get_output()
 void YaoGarbleWire::convcbit(Integer& dest, const GC::Clear& source,
 		GC::Processor<GC::Secret<YaoGarbleWire>>&)
 {
-	(void) source;
+	auto &garbler = YaoGarbler::s();
+	if (garbler.continuous())
+		dest = source;
+	else
+	{
+		garbler.untaint();
+		dest = garbler.P->receive_long(1);
+	}
+}
+
+void YaoGarbleWire::reveal_inst(Processor& processor, const vector<int>& args)
+{
+	auto &garbler = YaoGarbler::s();
+	if (garbler.continuous())
+	{
+		if (garbler.is_tainted())
+			processor.reveal(args);
+		garbler.untaint();
+		octetStream buffer;
+		garbler.P->receive_player(1, buffer);
+		for (size_t j = 0; j < args.size(); j += 3)
+		{
+			int n = args[j];
+			int r0 = args[j + 1];
+			for (int i = 0; i < DIV_CEIL(n, GC::Clear::N_BITS); i++)
+				processor.C[r0 + i].unpack(buffer);
+		}
+		garbler.taint();
+	}
+	else
+		processor.reveal(args);
+}
+
+void YaoGarbleWire::convcbit2s(GC::Processor<whole_type>& processor,
+		const BaseInstruction& instruction)
+{
+	int unit = GC::Clear::N_BITS;
+	for (int i = 0; i < DIV_CEIL(instruction.get_n(), unit); i++)
+	{
+		auto& dest = processor.S[instruction.get_r(0) + i];
+		int n = min(size_t(unit), instruction.get_n() - i * unit);
+		dest.resize_regs(n);
+		for (int j = 0; j < n; j++)
+			dest.get_reg(j).public_input(
+					processor.C[instruction.get_r(1) + i].get_bit(j));
+	}
+}
+
+void YaoGarbleWire::run_tapes(const vector<int>& args)
+{
 	auto& garbler = YaoGarbler::s();
-	garbler.untaint();
-	dest = garbler.P->receive_long(1);
+	if (garbler.continuous())
+		garbler.untaint();
+	garbler.master.machine.run_tapes(args);
 }
