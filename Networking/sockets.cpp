@@ -102,14 +102,14 @@ void set_up_client_socket(int& mysocket,const char* hostname,int Portnum)
    }
    while (fl == -1
        && (errno == ECONNREFUSED || errno == ETIMEDOUT || errno == EINPROGRESS)
-       && timer.elapsed() < 60);
+       && timer.elapsed() < 1800);
 
    if (fl < 0)
      {
        throw runtime_error(
            string() + "cannot connect from " + my_name + " to " + hostname + ":"
                + to_string(Portnum) + " after " + to_string(attempts)
-               + " attempts in one minute because " + strerror(connect_errno) + ". "
+               + " attempts in 3 minutes because " + strerror(connect_errno) + ". "
                "https://mp-spdz.readthedocs.io/en/latest/troubleshooting.html#"
                "connection-failures has more information on port requirements.");
      }
