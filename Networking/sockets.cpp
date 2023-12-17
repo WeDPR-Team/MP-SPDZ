@@ -109,7 +109,7 @@ void set_up_client_socket(int& mysocket,const char* hostname,int Portnum)
        throw runtime_error(
            string() + "cannot connect from " + my_name + " to " + hostname + ":"
                + to_string(Portnum) + " after " + to_string(attempts)
-               + " attempts in 3 minutes because " + strerror(connect_errno) + ". "
+               + " attempts in 30 minutes because " + strerror(connect_errno) + ". "
                "https://mp-spdz.readthedocs.io/en/latest/troubleshooting.html#"
                "connection-failures has more information on port requirements.");
      }
